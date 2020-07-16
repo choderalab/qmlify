@@ -5,7 +5,7 @@ qmlify
 [![codecov](https://codecov.io/gh/REPLACE_WITH_OWNER_ACCOUNT/qmlify/branch/master/graph/badge.svg)](https://codecov.io/gh/REPLACE_WITH_OWNER_ACCOUNT/qmlify/branch/master)
 
 
-feee energy calculations with ANI2x
+free energy calculations with ANI2x
 
 ### Copyright
 
