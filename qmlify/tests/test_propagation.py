@@ -199,10 +199,10 @@ def Propagator_update_particle_state_substate(propagator, particle):
     """
     #the following gets wrapped into the super Propagator.apply method
     particle.state.apply_to_context(propagator.context, ignore_velocities=True)
-    propagator.context.setVelocitiesToTemperature(pdf_state.temperature)
+    propagator.context.setVelocitiesToTemperature(propagator.pdf_state.temperature)
 
     propagator._update_particle_state_substate(particle.state, new_state_subset=True)
-    assert np.allclose(propagator.particle_state_subset.positions, particle.state.positions[list(atom_map.keys()),:])
+    assert np.allclose(propagator.particle_state_subset.positions, particle.state.positions[list(propagator._subset_indices_map.keys()),:])
 
 def Propagator_compute_hybrid_potential(propagator, particle):
     """
@@ -231,7 +231,7 @@ def Propagator_compute_hybrid_forces(propagator, particle, atol=1e-3):
     force = propagator.context.getState(getForces=True).getForces(asNumpy=True).value_in_unit(unit.kilojoule/(unit.nanometer * unit.mole))
     propagator._update_force(particle.state)
     mod_force = np.array(propagator.integrator.getPerDofVariableByName('modified_force'))
-    mapped_new_indices = list(atom_map.keys())
+    mapped_new_indices = list(propagator._subset_indices_map.keys())
     nonmapped_indices = [i for i in range(len(force)) if i not in mapped_new_indices]
     force_subset, mod_force_subset = force[mapped_new_indices,:].flatten(), mod_force[mapped_new_indices,:].flatten()
     assert any(abs(i-j) > 1e-1 for i,j in zip(force_subset, mod_force_subset))
