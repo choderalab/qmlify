@@ -60,6 +60,7 @@ def generate_testsystem(smiles = 'CCCC',
     from openmmforcefields.generators.system_generators import SystemGenerator
     from perses.utils.openeye import OEMol_to_omm_ff
     from simtk import openmm
+    from qmlify.utils import pull_force_by_name
 
     oemol = smiles_to_oemol(smiles)
     off_molecules = [Molecule.from_openeye(oemol)]
@@ -116,6 +117,7 @@ def propagator_testprep():
     import mdtraj as md
     from coddiwomple.particles import Particle
     from coddiwomple.openmm.states import OpenMMParticleState
+    from qmlify.utils import generate_propagator_inputs
 
     vac_sys_pos_top, sol_sys_pos_top = generate_testsystem()
     vac_system, vac_positions, vac_topology = vac_sys_pos_top
@@ -144,6 +146,7 @@ def test_ANI_force_and_energy(platform = 'cpu', temperature = 300*unit.kelvin):
     from openmmtools.testsystems import AlanineDipeptideVacuum
     from qmlify.propagation import ANI_force_and_energy
     import torch
+    import mdtraj as md
 
     ala = AlanineDipeptideVacuum()
     md_topology = md.Topology.from_openmm(ala.topology)
@@ -171,6 +174,72 @@ def test_ANI_force_and_energy(platform = 'cpu', temperature = 300*unit.kelvin):
     full_energy_out = ani_handler.calculate_energy(ala.positions)
     assert full_energy_out.unit.is_compatible(unit.kilojoules_per_mole)
 
+##########################
+###Propagator Sub-tests###
+##########################
+def Propagator_initializations(propagator, annealing_steps = 100):
+    """
+    test Propagator `_initialize_state_works` and `initialize_iterations` functionality
+    """
+
+    #check the propagator init method
+    assert not propagator._write_trajectory #there is no reporter equipped
+
+    #before integration:
+    propagator._initialize_state_works()
+    assert propagator._current_state_works == [0.0]
+
+    propagator._initialize_iterations(annealing_steps)
+    assert propagator._iteration == 0.0
+    assert propagator._n_iterations == annealing_steps
+
+def Propagator_update_particle_state_substate(propagator, particle):
+    """
+    test Propagator `_update_particle_state_substate`; it must update the substate and states accordingly
+    """
+    #the following gets wrapped into the super Propagator.apply method
+    particle.state.apply_to_context(propagator.context, ignore_velocities=True)
+    propagator.context.setVelocitiesToTemperature(pdf_state.temperature)
+
+    propagator._update_particle_state_substate(particle.state, new_state_subset=True)
+    assert np.allclose(propagator.particle_state_subset.positions, particle.state.positions[list(atom_map.keys()),:])
+
+def Propagator_compute_hybrid_potential(propagator, particle):
+    """
+    test to ensure that Propagator `_compute_hybrid_potential` updates the reduced potential appropriately
+    """
+    propagator._update_particle_state_substate(particle.state, new_state_subset=True)
+
+    propagator._iteration=0.
+    #compute the hybrid_potential (at iteration 0); this should be the same as the given potential...
+    hybrid_potential =  propagator._compute_hybrid_potential(0.0, particle.state)
+    assert hybrid_potential == propagator.pdf_state.reduced_potential(particle.state)
+
+    #compute the hybrid_potential (at iteration 1); this should be the same as the given potential (minus the ani contribution)
+    _lambda = 0.5
+    mod_hybrid_potential = propagator._compute_hybrid_potential(_lambda, particle.state)
+    ani_correction = _lambda * propagator.ani_handler.calculate_energy(propagator.particle_state_subset.positions) * propagator.pdf_state.beta
+    subset_correction = _lambda * propagator.pdf_state_subset.reduced_potential(propagator.particle_state_subset)
+    corrected_hybrid_potential = mod_hybrid_potential - ani_correction + subset_correction
+    assert np.isclose(corrected_hybrid_potential, hybrid_potential)
+
+def Propagator_compute_hybrid_forces(propagator, particle, atol=1e-3):
+    """
+    test to ensure that Propagator `_compute_hybrid_forces` updates the hybrid force appropriately
+    """
+    propagator._iteration=49 #annealed halfway!
+    force = propagator.context.getState(getForces=True).getForces(asNumpy=True).value_in_unit(unit.kilojoule/(unit.nanometer * unit.mole))
+    propagator._update_force(particle.state)
+    mod_force = np.array(propagator.integrator.getPerDofVariableByName('modified_force'))
+    mapped_new_indices = list(atom_map.keys())
+    nonmapped_indices = [i for i in range(len(force)) if i not in mapped_new_indices]
+    force_subset, mod_force_subset = force[mapped_new_indices,:].flatten(), mod_force[mapped_new_indices,:].flatten()
+    assert any(abs(i-j) > 1e-1 for i,j in zip(force_subset, mod_force_subset))
+    non_force_subset, non_mod_force_subset = force[nonmapped_indices,:].flatten(), mod_force[nonmapped_indices,:].flatten()
+    assert np.allclose(non_force_subset, non_mod_force_subset, atol=atol)
+
+
+
 def test_Integrator_Propagator(annealing_steps=100):
     """
     test qmlify.propagation.Propagator on solvated butane
@@ -186,4 +255,8 @@ def test_Integrator_Propagator(annealing_steps=100):
                      context_cache=None,
                      reassign_velocities=True,
                      n_restart_attempts=0)
-    particle_state, _return_dict = propagator.apply(particle.state, n_steps = annealing_steps, reset_integrator=True, apply_pdf_to_context=True)
+
+    Propagator_initializations(propagator)
+    Propagator_update_particle_state_substate(propagator, particle)
+    Propagator_compute_hybrid_potential(propagator, particle)
+    Propagator_compute_hybrid_forces(propagator, particle)
