@@ -242,7 +242,7 @@ def Propagator_compute_hybrid_forces(propagator, particle, atol=1e-3):
 
 def test_Integrator_Propagator(annealing_steps=100):
     """
-    test qmlify.propagation.Propagator on solvated butane
+    test qmlify.propagation.Propagator critical methods
     """
     from qmlify.propagation import Propagator
     pdf_state, pdf_state_subset, integrator, ani_handler, atom_map, particle = propagator_testprep()
@@ -260,3 +260,127 @@ def test_Integrator_Propagator(annealing_steps=100):
     Propagator_update_particle_state_substate(propagator, particle)
     Propagator_compute_hybrid_potential(propagator, particle)
     Propagator_compute_hybrid_forces(propagator, particle)
+
+
+def test_Integrator_Propagator_full(annealing_steps=10):
+    """
+    test the forward Propagation `apply` method
+    """
+    from qmlify.propagation import Propagator
+    pdf_state, pdf_state_subset, integrator, ani_handler, atom_map, particle = propagator_testprep()
+
+    propagator = Propagator(openmm_pdf_state = pdf_state,
+                     openmm_pdf_state_subset = pdf_state_subset,
+                     subset_indices_map = atom_map,
+                     integrator = integrator,
+                     ani_handler = ani_handler,
+                     context_cache=None,
+                     reassign_velocities=True,
+                     n_restart_attempts=0)
+
+    particle_state, _return_dict = propagator.apply(particle.state, n_steps = annealing_steps, reset_integrator=True, apply_pdf_to_context=True)
+
+    #assert that the iteration is equal to the total number of iterations
+    assert propagator._iteration == propagator._n_iterations
+
+    #the length of the state works must be the annealing step length + 1 since the first work is defaulted as 0.
+    assert len(propagator.state_works[0]) == annealing_steps + 1
+
+    #check to make sure that the particle state is maintained in memory
+    assert particle_state == particle.state
+
+    #the work should be negative
+    assert propagator.state_works[0][-1] < 0.
+
+def test_Integrator_BackwardPropagator(annealing_steps=10):
+    """
+    test the BackwardPropagation `apply` and basic method overwrites
+    """
+    from qmlify.propagation import BackwardPropagator
+    pdf_state, pdf_state_subset, integrator, ani_handler, atom_map, particle = propagator_testprep()
+
+    propagator = BackwardPropagator(openmm_pdf_state = pdf_state,
+                     openmm_pdf_state_subset = pdf_state_subset,
+                     subset_indices_map = atom_map,
+                     integrator = integrator,
+                     ani_handler = ani_handler,
+                     context_cache=None,
+                     reassign_velocities=True,
+                     n_restart_attempts=0)
+
+    #assert that the iteration is equal to the total number of iterations
+    assert propagator._iteration == propagator._n_iterations
+
+    particle_state, _return_dict = propagator.apply(particle.state, n_steps = annealing_steps, reset_integrator=True, apply_pdf_to_context=True)
+
+    #the length of the state works must be the annealing step length + 1 since the first work is defaulted as 0.
+    assert len(propagator.state_works[0]) == annealing_steps + 1
+
+    #check to make sure that the particle state is maintained in memory
+    assert particle_state == particle.state
+
+    #the work should be positive
+    assert propagator.state_works[0][-1] > 0.
+
+def test_Integrator_ANIPropagator(annealing_steps=10):
+    """
+    test the ANIPropagation `apply` and basic method overwrites
+    """
+    from qmlify.propagation import ANIPropagator
+    pdf_state, pdf_state_subset, integrator, ani_handler, atom_map, particle = propagator_testprep()
+
+    propagator = ANIPropagator(openmm_pdf_state = pdf_state,
+                     openmm_pdf_state_subset = pdf_state_subset,
+                     subset_indices_map = atom_map,
+                     integrator = integrator,
+                     ani_handler = ani_handler,
+                     context_cache=None,
+                     reassign_velocities=True,
+                     n_restart_attempts=0)
+
+
+    particle_state, _return_dict = propagator.apply(particle.state, n_steps = annealing_steps, reset_integrator=True, apply_pdf_to_context=True)
+
+
+    #check to make sure that the particle state is maintained in memory
+    assert particle_state == particle.state
+
+    #the work (here, just potential_energy) should be negative
+    assert propagator.state_works[0][-1] < 0.
+
+def test_forward_backward_Propagator_consistency():
+    """
+    test the Forward/Backward Propagator at one iteration to ensure equal/opposite work accumulation
+    """
+    from qmlify.propagation import Propagator, BackwardPropagator
+    import copy
+
+    #forward
+    pdf_state, pdf_state_subset, integrator, ani_handler, atom_map, particle = propagator_testprep()
+    backward_state = copy.deepcopy(pdf_state)
+    propagator = Propagator(openmm_pdf_state = pdf_state,
+                     openmm_pdf_state_subset = pdf_state_subset,
+                     subset_indices_map = atom_map,
+                     integrator = integrator,
+                     ani_handler = ani_handler,
+                     context_cache=None,
+                     reassign_velocities=True,
+                     n_restart_attempts=0)
+    particle_state, _return_dict = propagator.apply(particle.state, n_steps = 1, reset_integrator=True, apply_pdf_to_context=True)
+    forward_work = propagator.state_works[0][-1]
+
+    #backward
+    pdf_state, pdf_state_subset, integrator, ani_handler, atom_map, particle = propagator_testprep()
+    propagator = BackwardPropagator(openmm_pdf_state = backward_state,
+                     openmm_pdf_state_subset = pdf_state_subset,
+                     subset_indices_map = atom_map,
+                     integrator = integrator,
+                     ani_handler = ani_handler,
+                     context_cache=None,
+                     reassign_velocities=True,
+                     n_restart_attempts=0)
+    particle_state, _return_dict = propagator.apply(particle.state, n_steps =1, reset_integrator=True, apply_pdf_to_context=True)
+    backward_work = propagator.state_works[0][-1]
+
+    #assert the forward work is equal to the backward work
+    assert np.isclose(forward_work, -backward_work)

@@ -120,3 +120,183 @@ def generate_propagator_inputs(system,
     integrator = Integrator(**integrator_kwargs)
 
     return pdf_state, pdf_state_subset, integrator, ani_handler, atom_map
+
+def position_extractor(positions_cache_filename, index_to_extract):
+    """
+    pull a snapshot of positions (and box_vectors) from a `.npz` file
+
+    arguments
+        positions_cache_filename : str
+            full path of the .npz file to load
+        index_to_extract : int
+            index that will be extracted
+
+    returns
+        positions : np.ndarray(N, 3)
+            position of frame to extract
+        box_vectors : np.ndarray(3,3) or None
+            box vectors of the frame to extract if 'box_vectors' is a variable of the .npz
+    """
+    if positions_cache_filename[-4:] != '.npz':
+        raise Exception(f"the file mist be a .npz")
+
+    file = np.load(positions_cache_filename)
+    all_positions = file['positions']
+    try:
+        all_box_vectors = file['box_vectors']
+        assert len(box_vectors) == len(all_positions)
+    except Exception as e:
+        print(e)
+        all_box_vectors = None
+
+    positions = all_positions[index_to_extract]
+    box_vectors = all_box_vectors[index_to_extract] if all_box_vectors is not None else None
+
+    return positions, box_vectors
+
+
+def load_yaml(yml_filename):
+    """
+    load a yaml
+
+    arguments
+        yml_filename : str
+            yaml file to load
+
+    returns
+        setup_options : dict
+            dictionary of setup_options
+    """
+    import yaml
+
+    yaml_file = open(yml_filename, 'r')
+    setup_options = yaml.load(yaml_file, Loader=yaml.FullLoader)
+    yaml_file.close()
+    return setup_options
+
+def write_yaml(dictionary, yml_filename):
+    """
+    write a yaml
+
+    arguments
+        dictionary : dict
+            dictionary to write
+        yml_filename : str
+            yaml file to write
+    """
+    import yaml
+    with open(yml_filename, 'w') as outfile:
+        yaml.dump(dictionary, outfile, default_flow_style=False)
+
+def deserialize_xml(xml_filename):
+    """
+    load and deserialize an xml
+
+    arguments
+        xml_filename : str
+            full path of the xml filename
+
+    returns
+        xml_deserialized : deserialized xml object
+    """
+    from simtk.openmm.openmm import XmlSerializer
+    with open(xml_filename, 'r') as infile:
+        xml_readable = infile.read()
+    xml_deserialized = XmlSerializer.deserialize(xml_readable)
+    return xml_deserialized
+
+def serialize_xml(object, xml_filename):
+    """
+    load and deserialize an xml
+
+    arguments
+        object : object
+            serializable
+        xml_filename : str
+            full path of the xml filename
+    """
+    from simtk.openmm.openmm import XmlSerializer
+    with open(xml_filename, 'w') as outfile:
+        serial = XmlSerializer.serialize(object)
+        outfile.write(serial)
+
+def depickle(pickle_filename):
+    """
+    load a pickle
+
+    arguments
+        pickle_filename : str
+            name of pickle
+    returns
+        pickle : loaded pickle object
+    """
+    import pickle
+
+    with open(pickle_filename, 'rb') as f:
+        pickle = pickle.load(f)
+    return pickle
+
+def write_pickle(object, pickle_filename):
+    """
+    write a pickle
+
+    arguments
+        object : object
+            picklable object
+        pickle_filename : str
+            name of pickle
+    """
+    import pickle
+    with open(pickle_filename, 'wb') as f:
+        pickle.dump(object, f)
+
+
+def generate_random_string(length):
+    """
+    just that...generate a random string
+
+    arguments
+        length : int
+            length of random string
+    returns
+        _string : str
+            random string
+    """
+    import string
+    import random
+    res = ''.join(random.choices(string.ascii_uppercase +
+                             string.digits, k = length))
+    _string = str(res)
+    return _string
+
+def write_bsub_delete(lines_to_write, template, template_prefix, write_log=False, submission_call = 'bsub <'):
+    """
+    write a line to a template ('r'), save template + template_prefix, submit, ask whether to write log, delete file;
+    template must end in '.sh'
+
+    arguments
+        lines_to_write: list(str)
+            lines to write to template
+        template : str
+            filepath to template
+        template_prefix : str
+            prefix to add to write template; separated by '.'
+        write_log : bool, default False
+            whether to write a log file in the submission
+        submission_call : str, default 'bsub <'
+            submission call to functor
+    """
+    import os
+    assert template[-3:] == '.sh'
+    with open(template, 'r') as f:
+        line_template = f.readlines()
+
+    write_to = f"{template_prefix}.{template}"
+    with open(write_to, 'w') as f:
+        suffix = f" &> {write_to[:-2]}log" if write_log else ''
+        for line in lines_to_write:
+            toline = line + suffix
+            f.writelines(toline)
+
+    os.system(f"{submission_call} {write_to}")
+    os.remove(write_to)
