@@ -318,7 +318,7 @@ def propagation_admin(ligand_index_pairs,
                 write_yaml(yaml_dict, yml_filename)
                 write_bsub_delete(lines_to_write = [line_to_write],
                                   template = sh_template,
-                                  template_prefix = traj_work_file_prefix,
+                                  template_suffix = traj_work_file_prefix,
                                   write_log=write_log,
                                   submission_call = 'bsub <')
                 os.remove(yml_filename)

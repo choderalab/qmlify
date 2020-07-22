@@ -269,7 +269,7 @@ def generate_random_string(length):
     _string = str(res)
     return _string
 
-def write_bsub_delete(lines_to_write, template, template_prefix, write_log=False, submission_call = 'bsub <'):
+def write_bsub_delete(lines_to_write, template, template_suffix, write_log=False, submission_call = 'bsub <'):
     """
     write a line to a template ('r'), save template + template_prefix, submit, ask whether to write log, delete file;
     template must end in '.sh'
@@ -279,8 +279,8 @@ def write_bsub_delete(lines_to_write, template, template_prefix, write_log=False
             lines to write to template
         template : str
             filepath to template
-        template_prefix : str
-            prefix to add to write template; separated by '.'
+        template_suffix : str
+            suffix to add to write template; separated by '.', followed by '.sh'
         write_log : bool, default False
             whether to write a log file in the submission
         submission_call : str, default 'bsub <'
@@ -291,7 +291,7 @@ def write_bsub_delete(lines_to_write, template, template_prefix, write_log=False
     with open(template, 'r') as f:
         line_template = f.readlines()
 
-    write_to = f"{template_prefix}.{template}"
+    write_to = template[:-2]+template_suffix+'.sh'
     with open(write_to, 'w') as f:
         suffix = f" &> {write_to[:-2]}log" if write_log else ''
         for line in lines_to_write:
