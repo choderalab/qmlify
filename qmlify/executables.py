@@ -175,7 +175,9 @@ def perses_extraction_admin(ligand_index_pairs,
                             sh_template = None,
                             phases = ['complex', 'solvent'],
                             write_log = True,
-                            submission_call = 'bsub <'):
+                            submission_call = 'bsub <',
+                            cat_execution = True,
+                            delete_execution = True):
     """
     wraps the perses extraction admin around a list of ligand pairs and submits via bsub
 
@@ -202,7 +204,7 @@ def perses_extraction_admin(ligand_index_pairs,
         from_dir = os.path.join(from_dir_parent, f"lig{i}to{j}")
         to_dir = os.path.join(to_dir_parent, f"lig{i}to{j}")
         line_to_write = f"python -c 'from qmlify.perses_compatibility_utils import extract_perses_repex_to_local; extract_perses_repex_to_local({from_dir}, {to_dir}, {phases})'"
-        write_bsub_delete([line_to_write], sh_template, f"lig{i}to{j}_perses_extraction", write_log = write_log, submission_call = submission_call)
+        write_bsub_delete([line_to_write], sh_template, f"lig{i}to{j}_perses_extraction", write_log = write_log, submission_call = submission_call, cat=cat_execution, delete = delete_execution)
 
 def propagation_admin(ligand_index_pairs,
                               annealing_steps,

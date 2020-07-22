@@ -269,7 +269,7 @@ def generate_random_string(length):
     _string = str(res)
     return _string
 
-def write_bsub_delete(lines_to_write, template, template_suffix, write_log=False, submission_call = 'bsub <', cat = True):
+def write_bsub_delete(lines_to_write, template, template_suffix, write_log=False, submission_call = 'bsub <', cat = True, delete = True):
     """
     write a line to a template ('r'), save template + template_prefix, submit, ask whether to write log, delete file;
     template must end in '.sh'
@@ -300,7 +300,7 @@ def write_bsub_delete(lines_to_write, template, template_suffix, write_log=False
 
     os.system(f"{submission_call} {write_to}")
     if cat: os.system(f"cat {write_to}")
-    os.remove(write_to)
+    if delete: os.remove(write_to)
 
 def exp_distribution(works):
     """
