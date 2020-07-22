@@ -22,7 +22,7 @@ def extract_sys_top(local_path, factory_npz = 'outhybrid_factory.npy.npz', phase
         old_system = systems_dict[phase]._old_system
         new_system = systems_dict[phase]._new_system
         old_sys_filename = os.path.join(local_path, f"{phase}.old_system.xml")
-        new_sys_filename = os.path.join(local_path), f"{phase}.new_system.xml")
+        new_sys_filename = os.path.join(local_path, f"{phase}.new_system.xml")
         serialize_xml(old_system, old_sys_filename)
         serialize_xml(new_system, new_sys_filename)
 
@@ -139,7 +139,7 @@ def extract_and_subsample_forward_works(i,j,phase,state,annealing_steps, parent_
     corresponding_work_filenames = {int(i.split('.')[4][4:]): os.path.join(parent_dir, i) for i in works_filenames}
 
     #iterate through posiiton indices; if there is a work file and it has the approproate number of annealing steps, append it
-    full_dict = {}, works = {}
+    full_dict = {}; works = {}
     for index in position_index_extractions.keys():
         if index in list(corresponding_work_filenames.keys()):
             work_array = np.load(corresponding_work_filenames[index])['works']
