@@ -228,7 +228,9 @@ def propagation_admin(ligand_index_pairs,
                               nondefault_integrator_kwarg_dict=None,
                               eq_steps = None,
                               write_log=False,
-                              sh_template=None):
+                              sh_template=None,
+                              cat_outputs = False,
+                              delete_outputs=True):
     """
     performs ensemble annealing in the forward direction
 
@@ -256,6 +258,10 @@ def propagation_admin(ligand_index_pairs,
             whether to write the logger for the submission
         sh_template : str, default None
             path to a submission template; if None, qmlify.data.templates.cpu_daemon.sh will be used
+        cat_outputs : bool, default False
+            whether to cat the bsub .sh files
+        delete_outputs : bool, default True
+            whether to delete the bsub .sh files
 
     """
     import os
@@ -340,13 +346,15 @@ def propagation_admin(ligand_index_pairs,
 
                 yaml_dict['out_positions_npz'] = os.path.join(parent_dir, traj_work_file_prefix + f".positions.npz")
                 yaml_dict['out_works_npz'] = os.path.join(parent_dir, traj_work_file_prefix + f".works.npz")
-                yaml_filename = os.path.join(parent_dir, traj_work_file_prefix + f".yaml")
-                line_to_write = f"python -c \" {executor} {yaml_filename} \" "
+                yml_filename = os.path.join(parent_dir, traj_work_file_prefix + f".yaml")
+                line_to_write = f"python -c \" {executor} {yml_filename} \" "
                 write_yaml(yaml_dict, yml_filename)
                 write_bsub_delete(lines_to_write = [line_to_write],
                                   template = sh_template,
                                   template_suffix = traj_work_file_prefix,
                                   write_to_dir = parent_dir,
                                   write_log=write_log,
-                                  submission_call = 'bsub <')
+                                  submission_call = 'bsub <',
+                                  cat=cat_outputs,
+                                  delete=delete_outputs)
                 os.remove(yml_filename)
