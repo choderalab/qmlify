@@ -1,6 +1,13 @@
 """
 utilities specifically for perses compatibility (e.g. extracting folders from replica exchange checkpoints)
 """
+
+###Logger###
+import logging
+logging.basicConfig(level = logging.NOTSET)
+_logger = logging.getLogger(__name__)
+_logger.setLevel(logging.DEBUG)
+
 def extract_sys_top(local_path, factory_npz = 'outhybrid_factory.npy.npz', phases = ['complex', 'solvent', 'vacuum']):
     """
     given a htf_factory.npz, will extract all phases, serialize systems and pickle topologies
@@ -196,12 +203,16 @@ def perses_extraction_admin(ligand_index_pairs,
     from pkg_resources import resource_filename
     from qmlify.executables import extract_perses_repex_to_local #local
     from qmlify.utils import write_bsub_delete
+    _logger.info(f"administrating extraction of systems, positions, and topologies for {len(ligand_index_pairs)} ligand pairs...")
 
     if sh_template is None:
+        _logger.info(f"there is no .sh template specified; using default template")
         from pkg_resources import resource_filename
         sh_template = resource_filename('qmlify', 'data/templates/cpu_daemon.sh')
 
+    _logger.info(f"iterating through ligand pairs...")
     for i,j in ligand_index_pairs:
+        _logger.info(f"lig{i}to{j}:")
         from_dir = os.path.join(from_dir_parent, f"lig{i}to{j}")
         to_dir = os.path.join(to_dir_parent, f"lig{i}to{j}")
         line_to_write = f"python -c \"from qmlify.executables import extract_perses_repex_to_local; extract_perses_repex_to_local(\'{from_dir}\', \'{to_dir}\', {phases}) \" "
@@ -230,8 +241,8 @@ def propagation_admin(ligand_index_pairs,
             'forward', 'backward', or 'ani_endstate'
         parent_dir : str
             parent directory containing 'lig{i}to{j}'
-        extraction_indices : list of int
-            list of integers that will extract; this is only used in the 'forward' direction
+        extraction_indices : list of int or int
+            list of integers that will extract; this is only used in the 'forward' direction; otherwise, it is an int of the number of samples
         backers : list of str
             list of ['old', 'new']
         phases : list of str
@@ -254,22 +265,33 @@ def propagation_admin(ligand_index_pairs,
     from qmlify.utils import write_bsub_delete
     from pkg_resources import resource_filename
 
+    _logger.info(f"administrating ensemble {direction} job executions...")
+
     if sh_template is None:
+        _logger.info(f"there is no .sh template specified; using default template")
         sh_template = resource_filename('qmlify', 'data/templates/cpu_daemon.sh')
 
     executor = resource_filename('qmlify', 'qmlify.py')
+    _logger.debug(f"successfully loaded the qmlify.py executor")
 
     yaml_dict = {key: None for key in yaml_keys}
     yaml_dict['num_steps'] = annealing_steps
     yaml_dict['direction'] = direction
+
     if nondefault_integrator_kwarg_dict is not None:
+        _logger.debug(f"modifying integrator_kwargs for yaml qmlify submission...")
         yaml_dict['integrator_kwargs'] = nondefault_integration_kwarg_dict
+    else:
+        _logger.debug(f"there are no modifying integrator_kwargs for qmlify submission...")
 
     if direction == 'backward':
         if eq_steps is None: eq_steps = annealing_steps
+        _logger.debug(f"direction is backward; 'eq_steps' is not defined; extracting {annealing_steps} (annealing steps) as default")
 
     for i,j in zip(ligand_index_pairs):
+        _logger.debug(f"lig{i}to{j}: ")
         for state in backers:
+            _logger.debug(f"{state}: ")
             system_filename = os.path.join(parent_dir, f"lig{i}to{j}", f"{phase}.{backer}_system.xml")
             subset_system_filename = os.path.join(parent_dir, f"lig{i}to{j}", f"vacuum.{backer}_system.xml")
 
@@ -290,8 +312,10 @@ def propagation_admin(ligand_index_pairs,
 
             if direction == 'ani_endstate':
                 from qmlify.executables import  extract_and_subsample_forward_works
+                assert type(extraction_indices) == int
                 #we need to pull works and subsample
-                extraction_indices = extract_and_subsample_forward_works(i,j,phase,state,annealing_steps, parent_dir, len(extraction_indices))
+                extraction_indices = extract_and_subsample_forward_works(i,j,phase,state,annealing_steps, parent_dir, extraction_indices)
+                extraction_indices = range(extraction_indices)
                 np.savez(os.path.join(parent_dir, f"forward_resamples.npz"), extraction_indices)
             elif direction == 'backward':
                 from qmlify.executables import backward_extractor
