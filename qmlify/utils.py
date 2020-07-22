@@ -269,7 +269,7 @@ def generate_random_string(length):
     _string = str(res)
     return _string
 
-def write_bsub_delete(lines_to_write, template, template_suffix, write_log=False, submission_call = 'bsub <', cat = True, delete = True):
+def write_bsub_delete(lines_to_write, template, template_suffix, write_to_dir, write_log=False, submission_call = 'bsub <', cat = True, delete = True):
     """
     write a line to a template ('r'), save template + template_prefix, submit, ask whether to write log, delete file;
     template must end in '.sh'
@@ -281,6 +281,8 @@ def write_bsub_delete(lines_to_write, template, template_suffix, write_log=False
             filepath to template
         template_suffix : str
             suffix to add to write template; separated by '.', followed by '.sh'
+        write_to_dir : str
+            path that the file will be written to
         write_log : bool, default False
             whether to write a log file in the submission
         submission_call : str, default 'bsub <'
@@ -291,15 +293,20 @@ def write_bsub_delete(lines_to_write, template, template_suffix, write_log=False
     with open(template, 'r') as f:
         line_template = f.readlines()
 
-    write_to = template[:-2]+template_suffix+'.sh'
+    local_template_name = template.split('/')[-1]
+
+    write_to = os.path.join(write_to_dir, local_template_name[:-2]+template_suffix+'.sh')
     with open(write_to, 'w') as f:
         suffix = f" &> {write_to[:-2]}log" if write_log else ''
+        for line in line_template: f.writelines(line) #write the lines of the template
         for line in lines_to_write:
             toline = line + suffix
             f.writelines(toline)
 
     os.system(f"{submission_call} {write_to}")
-    if cat: os.system(f"cat {write_to}")
+    if cat:
+        print(f"write to file {write_to}: ")
+        os.system(f"{write_to}")
     if delete: os.remove(write_to)
 
 def exp_distribution(works):
