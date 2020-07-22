@@ -296,65 +296,67 @@ def propagation_admin(ligand_index_pairs,
 
     for i,j in ligand_index_pairs:
         _logger.debug(f"lig{i}to{j}: ")
-        for state in backers:
-            _logger.debug(f"{state}: ")
-            system_filename = os.path.join(parent_dir, f"lig{i}to{j}", f"{phase}.{backer}_system.xml")
-            subset_system_filename = os.path.join(parent_dir, f"lig{i}to{j}", f"vacuum.{backer}_system.xml")
+        for phase in phases:
+            _logger.debug(f"phase: {phase}")
+            for state in backers:
+                _logger.debug(f"{state}: ")
+                system_filename = os.path.join(parent_dir, f"lig{i}to{j}", f"{phase}.{backer}_system.xml")
+                subset_system_filename = os.path.join(parent_dir, f"lig{i}to{j}", f"vacuum.{backer}_system.xml")
 
-            topology_filename = os.path.join(parent_dir, f"lig{i}to{j}", f"{phase}.{backer}_topology.pkl")
-            subset_topology_filename = os.path.join(parent_dir, f"lig{i}to{j}", f"vacuum.{backer}_topology.pkl")
+                topology_filename = os.path.join(parent_dir, f"lig{i}to{j}", f"{phase}.{backer}_topology.pkl")
+                subset_topology_filename = os.path.join(parent_dir, f"lig{i}to{j}", f"vacuum.{backer}_topology.pkl")
 
-            yaml_dict['system'] = system_filename
-            yaml_dict['subset_system'] = subset_system_filename
-            yaml_dict['topology'] = topology_filename
-            yaml_dict['topology_filename'] = subset_topology_filename
+                yaml_dict['system'] = system_filename
+                yaml_dict['subset_system'] = subset_system_filename
+                yaml_dict['topology'] = topology_filename
+                yaml_dict['topology_filename'] = subset_topology_filename
 
-            if direction == 'forward':
-                if state == 'old':
-                    posit_filename = os.path.join(parent_dir, f"lig{i}to{j}", f"ligandAlambda0_{phase}.positions.npz")
-                else:
-                    posit_filename =os.path.join(parent_dir, f"lig{i}to{j}", f"ligandBlambda1_{phase}.positions.npz")
-                yaml_dict['positions_cache_filename'] = posit_filename
-
-            if direction == 'ani_endstate':
-                from qmlify.executables import  extract_and_subsample_forward_works
-                assert type(extraction_indices) == int
-                #we need to pull works and subsample
-                extraction_indices = extract_and_subsample_forward_works(i,j,phase,state,annealing_steps, parent_dir, extraction_indices)
-                extraction_indices = range(extraction_indices)
-                np.savez(os.path.join(parent_dir, f"forward_resamples.npz"), extraction_indices)
-            elif direction == 'backward':
-                from qmlify.executables import backward_extractor
-                extraction_indices = backward_extractor(i,j,phase, state, eq_steps, parent_dir)
-
-            for idx in range(len(extraction_indices)):
-                traj_work_file_prefix = f"lig{i}to{j}.{phase}.{state}.{direction}.idx_{idx}.{annealing}_steps"
-
-                #extraction_index
-                extraction_index = extraction_indices[idx] if direction=='forward' else 0
-                yaml_dict['position_extraction_index'] = extraction_index
+                if direction == 'forward':
+                    if state == 'old':
+                        posit_filename = os.path.join(parent_dir, f"lig{i}to{j}", f"ligandAlambda0_{phase}.positions.npz")
+                    else:
+                        posit_filename =os.path.join(parent_dir, f"lig{i}to{j}", f"ligandBlambda1_{phase}.positions.npz")
+                    yaml_dict['positions_cache_filename'] = posit_filename
 
                 if direction == 'ani_endstate':
-                    posit_filename = os.path.join(parent_dir, f"lig{i}to{j}.{phase}.{state}.forward.idx_{extraction_indices[idx]}.{annealing}_steps.positions.npz")
-                    yaml_dict['positions_cache_filename'] = posit_filename
+                    from qmlify.executables import  extract_and_subsample_forward_works
+                    assert type(extraction_indices) == int
+                    #we need to pull works and subsample
+                    extraction_indices = extract_and_subsample_forward_works(i,j,phase,state,annealing_steps, parent_dir, extraction_indices)
+                    extraction_indices = range(extraction_indices)
+                    np.savez(os.path.join(parent_dir, f"forward_resamples.npz"), extraction_indices)
                 elif direction == 'backward':
-                    posit_filename = os.path.join(parent_dir, f"lig{i}to{j}.{phase}.{state}.ani_endstate.idx_{extraction_indices[idx]}.{eq_steps}_steps.positions.npz")
-                    yaml_dict['positions_cache_filename'] = posit_filename
-                else:
-                    #already chosen above
-                    pass
+                    from qmlify.executables import backward_extractor
+                    extraction_indices = backward_extractor(i,j,phase, state, eq_steps, parent_dir)
 
-                yaml_dict['out_positions_npz'] = os.path.join(parent_dir, traj_work_file_prefix + f".positions.npz")
-                yaml_dict['out_works_npz'] = os.path.join(parent_dir, traj_work_file_prefix + f".works.npz")
-                yml_filename = os.path.join(parent_dir, traj_work_file_prefix + f".yaml")
-                line_to_write = f"python -c \" {executor} {yml_filename} \" "
-                write_yaml(yaml_dict, yml_filename)
-                write_bsub_delete(lines_to_write = [line_to_write],
-                                  template = sh_template,
-                                  template_suffix = traj_work_file_prefix,
-                                  write_to_dir = parent_dir,
-                                  write_log=write_log,
-                                  submission_call = 'bsub <',
-                                  cat=cat_outputs,
-                                  delete=delete_outputs)
-                os.remove(yml_filename)
+                for idx in range(len(extraction_indices)):
+                    traj_work_file_prefix = f"lig{i}to{j}.{phase}.{state}.{direction}.idx_{idx}.{annealing}_steps"
+
+                    #extraction_index
+                    extraction_index = extraction_indices[idx] if direction=='forward' else 0
+                    yaml_dict['position_extraction_index'] = extraction_index
+
+                    if direction == 'ani_endstate':
+                        posit_filename = os.path.join(parent_dir, f"lig{i}to{j}.{phase}.{state}.forward.idx_{extraction_indices[idx]}.{annealing}_steps.positions.npz")
+                        yaml_dict['positions_cache_filename'] = posit_filename
+                    elif direction == 'backward':
+                        posit_filename = os.path.join(parent_dir, f"lig{i}to{j}.{phase}.{state}.ani_endstate.idx_{extraction_indices[idx]}.{eq_steps}_steps.positions.npz")
+                        yaml_dict['positions_cache_filename'] = posit_filename
+                    else:
+                        #already chosen above
+                        pass
+
+                    yaml_dict['out_positions_npz'] = os.path.join(parent_dir, traj_work_file_prefix + f".positions.npz")
+                    yaml_dict['out_works_npz'] = os.path.join(parent_dir, traj_work_file_prefix + f".works.npz")
+                    yml_filename = os.path.join(parent_dir, traj_work_file_prefix + f".yaml")
+                    line_to_write = f"python -c \" {executor} {yml_filename} \" "
+                    write_yaml(yaml_dict, yml_filename)
+                    write_bsub_delete(lines_to_write = [line_to_write],
+                                      template = sh_template,
+                                      template_suffix = traj_work_file_prefix,
+                                      write_to_dir = parent_dir,
+                                      write_log=write_log,
+                                      submission_call = 'bsub <',
+                                      cat=cat_outputs,
+                                      delete=delete_outputs)
+                    os.remove(yml_filename)
