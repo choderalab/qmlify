@@ -300,3 +300,26 @@ def write_bsub_delete(lines_to_write, template, template_prefix, write_log=False
 
     os.system(f"{submission_call} {write_to}")
     os.remove(write_to)
+
+def exp_distribution(works):
+    """
+    pull a normalized weight distribution from a work distribution
+
+    arguments
+        works : np.ndarray(N)
+            array of accumulated works
+
+    returns
+        weights : np.ndarray(N)
+            normalized weights corresponding to works
+    """
+    from scipy.special import logsumexp
+    import numpy as np
+    xs = -works
+    a = np.max(xs)
+    xs_primed = xs - a
+    log_normalizer = a + logsumexp(xs_primed)
+    log_probs = xs - log_normalizer
+
+    assert np.isclose(np.sum(np.exp(log_probs)), 1.)
+    return np.exp(log_probs)

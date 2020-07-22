@@ -96,6 +96,75 @@ def extract_perses_repex_to_local(from_dir, to_dir, phases = ['complex', 'solven
             bv_frames = np.array(bv_frames)
             np.savez(os.path.join(to_dir, f"{lig}_{phase}.positions.npz"), positions = positions, box_vectors = box_vectors)
 
+def extract_and_subsample_forward_works(i,j,phase,state,annealing_steps, parent_dir, num_resamples):
+    """
+    after forward annealing, query the output positions and work files;
+    in the event that some fail, they will not be written;
+    pull the index labels of the work/position files, match them accordingly, and assert that the size of the work array is appropriately defined;
+    normalize the works and return a subsampled array of size num_resamples
+
+    arguments
+        i : int
+            lig{i}to{j}
+        j : int
+            lig{i}to{j}
+        phase : str
+            the phase
+        state : str
+            'old' or 'new'
+        annealing_steps : int
+            number of annealing steps to extract
+        parent_dir : str
+            full path of the parent dir of lig{i}to{j}
+        num_resamples : int
+            number of resamples to pull
+
+    returns
+        resamples : np.array(num_resamples)
+            resampled indices
+
+    """
+    import glob
+    import os
+    from qmlify.utils import exp_distribution
+
+    #define a posiiton and work template
+    positions_template = os.path.join(parent_dir, f"lig{i}to{j}.{phase}.{state}.forward.*.{annealing}_steps.positions.npz")
+    works_template = os.path.join(parent_dir, f"lig{i}to{j}.{phase}.{state}.forward.*.{annealing}_steps.works.npz")
+
+    #query the positions/work template
+    positions_filenames = glob.glob(positions_template)
+    position_index_extractions = {int(filename.split('.')[4][4:]): os.path.join(parent_dir, i) for i in positions_filenames} #make a dict of indices
+    works_filenames = glob.glob(works_template)
+    corresponding_work_filenames = {int(i.split('.')[4][4:]): os.path.join(parent_dir, i) for i in works_filenames}
+
+    #iterate through posiiton indices; if there is a work file and it has the approproate number of annealing steps, append it
+    full_dict = {}, works = {}
+    for index in position_index_extractions.keys():
+        if index in list(corresponding_work_filenames.keys()):
+            work_array = np.load(corresponding_work_filenames[index])['works']
+            if len(work_array) == annealing_steps + 1:
+                full_dict[index] = (position_index_extractions[index], corresponding_work_filenames[index])
+                works[index] = work_array[-1]
+
+    #normalize
+    work_indices, work_values = list(works.keys()), np.array(list(works.values()))
+    normalized_work_values = exp_distribution(work_values)
+
+    resamples = np.random.choice(work_indices, num_resamples, p = normalized_work_values)
+    return resamples
+
+def backward_extractor(i,j,phase, state, annealing_steps, parent_dir):
+    """
+    pull the indices of all existing position files
+    """
+    import os
+    import glob
+    positions_template = os.path.join(parent_dir, f"lig{i}to{j}.{phase}.{state}.ani_endstate.*.{annealing}_steps.positions.npz")
+    positions_filenames = glob.glob(positions_template)
+    position_index_extractions = {int(filename.split('.')[4][4:]): os.path.join(parent_dir, filename) for filename in positions_filenames}
+    return list(position_index_extractions.keys())
+
 
 ####################
 ###ADMINISTRATORS###
@@ -135,18 +204,121 @@ def perses_extraction_admin(ligand_index_pairs,
         line_to_write = f"python -c 'from qmlify.perses_compatibility_utils import extract_perses_repex_to_local; extract_perses_repex_to_local({from_dir}, {to_dir}, {phases})'"
         write_bsub_delete([line_to_write], sh_template, f"lig{i}to{j}_perses_extraction", write_log = write_log, submission_call = submission_call)
 
-def forward_propagation_admin(ligand_index_pairs, phases, annealing_steps, parent_dir, extraction_indices = range(0,200,2), nondefault_kwarg_dict=None):
+def propagation_admin(ligand_index_pairs,
+                              annealing_steps,
+                              direction,
+                              parent_dir,
+                              extraction_indices = range(0,200,2),
+                              backers = ['old', 'new'],
+                              phases = ['complex', 'solvent'],
+                              nondefault_integrator_kwarg_dict=None,
+                              eq_steps = None,
+                              write_log=False,
+                              sh_template=None):
     """
     performs ensemble annealing in the forward direction
+
+    arguments
+        ligand_index_pairs : list of tup of str
+            list of ligand tuple indices (e.g. [(0,1), (3,4)])
+        annealing_steps : int
+            number of annealing steps
+        direction : str
+            'forward', 'backward', or 'ani_endstate'
+        parent_dir : str
+            parent directory containing 'lig{i}to{j}'
+        extraction_indices : list of int
+            list of integers that will extract; this is only used in the 'forward' direction
+        backers : list of str
+            list of ['old', 'new']
+        phases : list of str
+            phases to run simulation
+        nondefault_integrator_kwarg_dict : dict, default None
+            integration kwargs
+        eq_steps : int, default None
+            only used for 'backward' direction to specify which set of equilibrium snapshots at the ani_endstate will be annealed backward;
+            if None, will use annealing steps
+        write_log : bool, default False
+            whether to write the logger for the submission
+        sh_template : str, default None
+            path to a submission template; if None, qmlify.data.templates.cpu_daemon.sh will be used
+
     """
     import os
+    import glob
     from qmlify.qmlify_data import yaml_keys #template
+    from qmlify.utils import write_yaml
+    from qmlify.utils import write_bsub_delete
+    from pkg_resources import resource_filename
+
+    if sh_template is None:
+        sh_template = resource_filename('qmlify', 'data/templates/cpu_daemon.sh')
+
+    executor = resource_filename('qmlify', 'qmlify.py')
 
     yaml_dict = {key: None for key in yaml_keys}
     yaml_dict['num_steps'] = annealing_steps
-    yaml_dict['direction'] = 'forward'
+    yaml_dict['direction'] = direction
+    if nondefault_integrator_kwarg_dict is not None:
+        yaml_dict['integrator_kwargs'] = nondefault_integration_kwarg_dict
 
-    system_template =
+    if direction == 'backward':
+        if eq_steps is None: eq_steps = annealing_steps
 
+    for i,j in zip(ligand_index_pairs):
+        for state in backers:
+            system_filename = os.path.join(parent_dir, f"lig{i}to{j}", f"{phase}.{backer}_system.xml")
+            subset_system_filename = os.path.join(parent_dir, f"lig{i}to{j}", f"vacuum.{backer}_system.xml")
 
-    for i,j in ligand_index_pairs:
+            topology_filename = os.path.join(parent_dir, f"lig{i}to{j}", f"{phase}.{backer}_topology.pkl")
+            subset_topology_filename = os.path.join(parent_dir, f"lig{i}to{j}", f"vacuum.{backer}_topology.pkl")
+
+            yaml_dict['system'] = system_filename
+            yaml_dict['subset_system'] = subset_system_filename
+            yaml_dict['topology'] = topology_filename
+            yaml_dict['topology_filename'] = subset_topology_filename
+
+            if direction == 'forward':
+                if state == 'old':
+                    posit_filename = os.path.join(parent_dir, f"lig{i}to{j}", f"ligandAlambda0_{phase}.positions.npz")
+                else:
+                    posit_filename =os.path.join(parent_dir, f"lig{i}to{j}", f"ligandBlambda1_{phase}.positions.npz")
+                yaml_dict['positions_cache_filename'] = posit_filename
+
+            if direction == 'ani_endstate':
+                from qmlify.executables import  extract_and_subsample_forward_works
+                #we need to pull works and subsample
+                extraction_indices = extract_and_subsample_forward_works(i,j,phase,state,annealing_steps, parent_dir, len(extraction_indices))
+                np.savez(os.path.join(parent_dir, f"forward_resamples.npz"), extraction_indices)
+            elif direction == 'backward':
+                from qmlify.executables import backward_extractor
+                extraction_indices = backward_extractor(i,j,phase, state, eq_steps, parent_dir)
+
+            for idx in range(len(extraction_indices)):
+                traj_work_file_prefix = f"lig{i}to{j}.{phase}.{state}.{direction}.idx_{idx}.{annealing}_steps"
+
+                #extraction_index
+                extraction_index = extraction_indices[idx] if direction=='forward' else 0
+                yaml_dict['position_extraction_index'] = extraction_index
+
+                if direction == 'ani_endstate':
+                    posit_filename = os.path.join(parent_dir, f"lig{i}to{j}.{phase}.{state}.forward.idx_{extraction_indices[idx]}.{annealing}_steps.positions.npz")
+                    yaml_dict['positions_cache_filename'] = posit_filename
+                elif direction == 'backward':
+                    posit_filename = os.path.join(parent_dir, f"lig{i}to{j}.{phase}.{state}.ani_endstate.idx_{extraction_indices[idx]}.{eq_steps}_steps.positions.npz")
+                    yaml_dict['positions_cache_filename'] = posit_filename
+                else:
+                    #already chosen above
+                    pass
+
+                yaml_dict['out_positions_npz'] = os.path.join(parent_dir, traj_work_file_prefix + f".positions.npz")
+                yaml_dict['out_works_npz'] = os.path.join(parent_dir, traj_work_file_prefix + f".works.npz")
+                yaml_filename = os.path.join(parent_dir, traj_work_file_prefix + f".yaml")
+                line_to_write = f"python -c '{executor} {yaml_filename}'"
+                write_yaml(yaml_dict, yml_filename)
+                write_bsub_delete(lines_to_write = [line_to_write],
+                                  template = sh_template,
+                                  template_prefix = traj_work_file_prefix,
+                                  write_log=write_log,
+                                  submission_call = 'bsub <')
+                os.remove(yml_filename)
