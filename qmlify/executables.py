@@ -294,7 +294,7 @@ def propagation_admin(ligand_index_pairs,
         if eq_steps is None: eq_steps = annealing_steps
         _logger.debug(f"direction is backward; 'eq_steps' is not defined; extracting {annealing_steps} (annealing steps) as default")
 
-    for i,j in zip(ligand_index_pairs):
+    for i,j in ligand_index_pairs:
         _logger.debug(f"lig{i}to{j}: ")
         for state in backers:
             _logger.debug(f"{state}: ")
