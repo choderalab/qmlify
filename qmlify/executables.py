@@ -277,9 +277,6 @@ def propagation_admin(ligand_index_pairs,
         _logger.info(f"there is no .sh template specified; using default template")
         sh_template = resource_filename('qmlify', 'data/templates/cpu_daemon.sh')
 
-    executor = resource_filename('qmlify', 'executor.py')
-    _logger.debug(f"successfully loaded the executor.py executor")
-
     yaml_dict = {key: None for key in yaml_keys}
     yaml_dict['num_steps'] = annealing_steps
     yaml_dict['direction'] = direction
@@ -349,7 +346,7 @@ def propagation_admin(ligand_index_pairs,
                     yaml_dict['out_positions_npz'] = os.path.join(parent_dir, traj_work_file_prefix + f".positions.npz")
                     yaml_dict['out_works_npz'] = os.path.join(parent_dir, traj_work_file_prefix + f".works.npz")
                     yml_filename = os.path.join(parent_dir, traj_work_file_prefix + f".yaml")
-                    line_to_write = f"{executor} {yml_filename}"
+                    line_to_write = f"python -c \"from qmlify.executor import run; run({yml_filename})\" "
                     write_yaml(yaml_dict, yml_filename)
                     write_bsub_delete(lines_to_write = [line_to_write],
                                       template = sh_template,
