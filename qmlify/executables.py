@@ -137,8 +137,8 @@ def extract_and_subsample_forward_works(i,j,phase,state,annealing_steps, parent_
     from qmlify.utils import exp_distribution
 
     #define a posiiton and work template
-    positions_template = os.path.join(parent_dir, f"lig{i}to{j}.{phase}.{state}.forward.*.{annealing}_steps.positions.npz")
-    works_template = os.path.join(parent_dir, f"lig{i}to{j}.{phase}.{state}.forward.*.{annealing}_steps.works.npz")
+    positions_template = os.path.join(parent_dir, f"lig{i}to{j}.{phase}.{state}.forward.*.{annealing_steps}_steps.positions.npz")
+    works_template = os.path.join(parent_dir, f"lig{i}to{j}.{phase}.{state}.forward.*.{annealing_steps}_steps.works.npz")
 
     #query the positions/work template
     positions_filenames = glob.glob(positions_template)
@@ -168,7 +168,7 @@ def backward_extractor(i,j,phase, state, annealing_steps, parent_dir):
     """
     import os
     import glob
-    positions_template = os.path.join(parent_dir, f"lig{i}to{j}.{phase}.{state}.ani_endstate.*.{annealing}_steps.positions.npz")
+    positions_template = os.path.join(parent_dir, f"lig{i}to{j}.{phase}.{state}.ani_endstate.*.{annealing_steps}_steps.positions.npz")
     positions_filenames = glob.glob(positions_template)
     position_index_extractions = {int(filename.split('.')[4][4:]): os.path.join(parent_dir, filename) for filename in positions_filenames}
     return list(position_index_extractions.keys())
@@ -277,8 +277,8 @@ def propagation_admin(ligand_index_pairs,
         _logger.info(f"there is no .sh template specified; using default template")
         sh_template = resource_filename('qmlify', 'data/templates/cpu_daemon.sh')
 
-    executor = resource_filename('qmlify', 'qmlify.py')
-    _logger.debug(f"successfully loaded the qmlify.py executor")
+    executor = resource_filename('qmlify', 'executor.py')
+    _logger.debug(f"successfully loaded the executor.py executor")
 
     yaml_dict = {key: None for key in yaml_keys}
     yaml_dict['num_steps'] = annealing_steps
@@ -300,11 +300,11 @@ def propagation_admin(ligand_index_pairs,
             _logger.debug(f"phase: {phase}")
             for state in backers:
                 _logger.debug(f"{state}: ")
-                system_filename = os.path.join(parent_dir, f"lig{i}to{j}", f"{phase}.{backer}_system.xml")
-                subset_system_filename = os.path.join(parent_dir, f"lig{i}to{j}", f"vacuum.{backer}_system.xml")
+                system_filename = os.path.join(parent_dir, f"lig{i}to{j}", f"{phase}.{state}_system.xml")
+                subset_system_filename = os.path.join(parent_dir, f"lig{i}to{j}", f"vacuum.{state}_system.xml")
 
-                topology_filename = os.path.join(parent_dir, f"lig{i}to{j}", f"{phase}.{backer}_topology.pkl")
-                subset_topology_filename = os.path.join(parent_dir, f"lig{i}to{j}", f"vacuum.{backer}_topology.pkl")
+                topology_filename = os.path.join(parent_dir, f"lig{i}to{j}", f"{phase}.{state}_topology.pkl")
+                subset_topology_filename = os.path.join(parent_dir, f"lig{i}to{j}", f"vacuum.{state}_topology.pkl")
 
                 yaml_dict['system'] = system_filename
                 yaml_dict['subset_system'] = subset_system_filename
@@ -330,14 +330,14 @@ def propagation_admin(ligand_index_pairs,
                     extraction_indices = backward_extractor(i,j,phase, state, eq_steps, parent_dir)
 
                 for idx in range(len(extraction_indices)):
-                    traj_work_file_prefix = f"lig{i}to{j}.{phase}.{state}.{direction}.idx_{idx}.{annealing}_steps"
+                    traj_work_file_prefix = f"lig{i}to{j}.{phase}.{state}.{direction}.idx_{idx}.{annealing_steps}_steps"
 
                     #extraction_index
                     extraction_index = extraction_indices[idx] if direction=='forward' else 0
                     yaml_dict['position_extraction_index'] = extraction_index
 
                     if direction == 'ani_endstate':
-                        posit_filename = os.path.join(parent_dir, f"lig{i}to{j}.{phase}.{state}.forward.idx_{extraction_indices[idx]}.{annealing}_steps.positions.npz")
+                        posit_filename = os.path.join(parent_dir, f"lig{i}to{j}.{phase}.{state}.forward.idx_{extraction_indices[idx]}.{annealing_steps}_steps.positions.npz")
                         yaml_dict['positions_cache_filename'] = posit_filename
                     elif direction == 'backward':
                         posit_filename = os.path.join(parent_dir, f"lig{i}to{j}.{phase}.{state}.ani_endstate.idx_{extraction_indices[idx]}.{eq_steps}_steps.positions.npz")
@@ -349,7 +349,7 @@ def propagation_admin(ligand_index_pairs,
                     yaml_dict['out_positions_npz'] = os.path.join(parent_dir, traj_work_file_prefix + f".positions.npz")
                     yaml_dict['out_works_npz'] = os.path.join(parent_dir, traj_work_file_prefix + f".works.npz")
                     yml_filename = os.path.join(parent_dir, traj_work_file_prefix + f".yaml")
-                    line_to_write = f"python -c \" {executor} {yml_filename} \" "
+                    line_to_write = f"{executor} {yml_filename}"
                     write_yaml(yaml_dict, yml_filename)
                     write_bsub_delete(lines_to_write = [line_to_write],
                                       template = sh_template,

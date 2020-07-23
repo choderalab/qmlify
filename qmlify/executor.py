@@ -1,13 +1,15 @@
+#!/usr/bin/env python
+
 """
 qmlify.py
 feee energy calculations with ANI2x
 
 Handles the primary functions
 """
-from qmlify.utils import *
-import sys
-import numpy as np
-import mdtraj as md
+#from qmlify.utils import *
+#import sys
+#import numpy as np
+#import mdtraj as md
 
 def run(setup_dict):
     """
@@ -85,6 +87,12 @@ def run(setup_dict):
     return particle_state, np.array(propagator.state_works[0])
 
 if __name__ == "__main__":
+
+    from qmlify.utils import *
+    import sys
+    import numpy as np
+    import mdtraj as md
+
     setup_dict = load_yaml(sys.argv[1])
     particle_state, work_array = run(setup_dict)
     if particle_state.box_vectors is not None:
