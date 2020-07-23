@@ -1,23 +1,24 @@
-#!/usr/bin/env python
-
 """
 qmlify.py
 feee energy calculations with ANI2x
 
 Handles the primary functions
 """
-#from qmlify.utils import *
-#import sys
-#import numpy as np
-#import mdtraj as md
 
-def run(setup_dict):
+def run(setup_yaml):
     """
     execute a Propagator
     """
     import torchani
+    import sys
+    import numpy as np
+    import mdtraj as md
     from coddiwomple.particles import Particle
     from coddiwomple.openmm.states import OpenMMParticleState
+    from qmlify.utils import load_yaml, deserialize_xml, position_extractor, generate_propagator_inputs,
+
+    #open a setup_dict from a setup_yaml
+    setup_dict = load_yaml(setup_yaml)
 
     #pull systems
     system = deserialize_xml(setup_dict['system'])
@@ -84,17 +85,8 @@ def run(setup_dict):
     if box_vectors is None:
         particle_state.box_vectors=None
 
-    return particle_state, np.array(propagator.state_works[0])
+    work_array = np.array(propagator.state_works[0])
 
-if __name__ == "__main__":
-
-    from qmlify.utils import *
-    import sys
-    import numpy as np
-    import mdtraj as md
-
-    setup_dict = load_yaml(sys.argv[1])
-    particle_state, work_array = run(setup_dict)
     if particle_state.box_vectors is not None:
         np.savez(setup_dict['out_positions_npz'], positions=particle_state.positions.value_in_unit_system(unit.md_unit_system), box_vectors = particle_state.box_vectors.value_in_unit_system(unit.md_unit_system))
     else:
