@@ -5,20 +5,18 @@ feee energy calculations with ANI2x
 Handles the primary functions
 """
 
-def run(setup_yaml):
+def run(setup_dict):
     """
     execute a Propagator
     """
     import torchani
+    from simtk import unit
     import sys
     import numpy as np
     import mdtraj as md
     from coddiwomple.particles import Particle
     from coddiwomple.openmm.states import OpenMMParticleState
-    from qmlify.utils import load_yaml, deserialize_xml, position_extractor, generate_propagator_inputs,
-
-    #open a setup_dict from a setup_yaml
-    setup_dict = load_yaml(setup_yaml)
+    from qmlify.utils import load_yaml, deserialize_xml, position_extractor, generate_propagator_inputs, depickle
 
     #pull systems
     system = deserialize_xml(setup_dict['system'])
@@ -43,11 +41,12 @@ def run(setup_yaml):
                                  'pressure': 1.0 * unit.atmosphere}
     if 'integrator_kwargs' in setup_dict.keys():
         integrator_kwargs = setup_dict['integrator_kwargs']
-        if 'temperature' in integrator_kwargs.keys(): integrator_kwargs['temperature'] *= unit.kelvin
-        if 'collision_rate' in integrator_kwargs.keys(): integrator_kwargs['collision_rate'] /= unit.picoseconds
-        if 'timestep' in integrator_kwargs.keys(): integrator_kwargs['timestep'] *= unit.femtoseconds
-        if 'pressure' in integrator_kwargs.keys() and integrator_kwargs['pressure'] is not None: integrator_kwargs['pressure'] *= unit.atmosphere
-        default_integrator_kwargs.update(integrator_kwargs)
+        if integrator_kwargs is not None:
+            if 'temperature' in integrator_kwargs.keys(): integrator_kwargs['temperature'] *= unit.kelvin
+            if 'collision_rate' in integrator_kwargs.keys(): integrator_kwargs['collision_rate'] /= unit.picoseconds
+            if 'timestep' in integrator_kwargs.keys(): integrator_kwargs['timestep'] *= unit.femtoseconds
+            if 'pressure' in integrator_kwargs.keys() and integrator_kwargs['pressure'] is not None: integrator_kwargs['pressure'] *= unit.atmosphere
+            default_integrator_kwargs.update(integrator_kwargs)
 
     pdf_state, pdf_state_subset, integrator, ani_handler, atom_map = generate_propagator_inputs(system = system,
                                                                                                 system_subset = system_subset,

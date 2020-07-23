@@ -267,7 +267,6 @@ def propagation_admin(ligand_index_pairs,
     import os
     import glob
     from qmlify.qmlify_data import yaml_keys #template
-    from qmlify.utils import write_yaml
     from qmlify.utils import write_bsub_delete
     from pkg_resources import resource_filename
 
@@ -306,7 +305,7 @@ def propagation_admin(ligand_index_pairs,
                 yaml_dict['system'] = system_filename
                 yaml_dict['subset_system'] = subset_system_filename
                 yaml_dict['topology'] = topology_filename
-                yaml_dict['topology_filename'] = subset_topology_filename
+                yaml_dict['subset_topology'] = subset_topology_filename
 
                 if direction == 'forward':
                     if state == 'old':
@@ -345,9 +344,8 @@ def propagation_admin(ligand_index_pairs,
 
                     yaml_dict['out_positions_npz'] = os.path.join(parent_dir, traj_work_file_prefix + f".positions.npz")
                     yaml_dict['out_works_npz'] = os.path.join(parent_dir, traj_work_file_prefix + f".works.npz")
-                    yml_filename = os.path.join(parent_dir, traj_work_file_prefix + f".yaml")
-                    line_to_write = f"python -c \"from qmlify.executor import run; run({yml_filename})\" "
-                    write_yaml(yaml_dict, yml_filename)
+
+                    line_to_write = f"python -c \"from qmlify.executor import run; run({yaml_dict})\" "
                     write_bsub_delete(lines_to_write = [line_to_write],
                                       template = sh_template,
                                       template_suffix = traj_work_file_prefix,
@@ -356,4 +354,3 @@ def propagation_admin(ligand_index_pairs,
                                       submission_call = 'bsub <',
                                       cat=cat_outputs,
                                       delete=delete_outputs)
-                    os.remove(yml_filename)
