@@ -144,7 +144,7 @@ def position_extractor(positions_cache_filename, index_to_extract):
     all_positions = file['positions']
     try:
         all_box_vectors = file['box_vectors']
-        assert len(box_vectors) == len(all_positions)
+        assert len(all_box_vectors) == len(all_positions)
     except Exception as e:
         print(f"box vector extractor error: {e}")
         all_box_vectors = None
