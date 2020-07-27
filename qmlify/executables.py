@@ -277,8 +277,14 @@ def propagation_admin(ligand_index_pairs,
         sh_template = resource_filename('qmlify', 'data/templates/cpu_daemon.sh')
 
     yaml_dict = {key: None for key in yaml_keys}
-    yaml_dict['num_steps'] = annealing_steps
+
     yaml_dict['direction'] = direction
+
+    if direction =='ani_endstate':
+        if eq_steps is None: eq_steps = annealing_steps
+        yaml_dict['num_steps'] = eq_steps
+    else:
+        yaml_dict['num_steps'] = annealing_steps
 
     if nondefault_integrator_kwarg_dict is not None:
         _logger.debug(f"modifying integrator_kwargs for yaml qmlify submission...")
@@ -315,7 +321,7 @@ def propagation_admin(ligand_index_pairs,
                     yaml_dict['positions_cache_filename'] = posit_filename
 
                 if direction == 'ani_endstate':
-                    from qmlify.executables import  extract_and_subsample_forward_works
+                    from qmlify.executables import extract_and_subsample_forward_works
                     assert type(extraction_indices) == int
                     #we need to pull works and subsample
                     extraction_indices = extract_and_subsample_forward_works(i,j,phase,state,annealing_steps, parent_dir, extraction_indices)
