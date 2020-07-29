@@ -150,7 +150,10 @@ def position_extractor(positions_cache_filename, index_to_extract):
         all_box_vectors = None
 
     positions = all_positions[index_to_extract]
+    assert positions.shape[1] == 3, f"the extracted position shapes are: {positions.shape}"
     box_vectors = all_box_vectors[index_to_extract] if all_box_vectors is not None else None
+    if box_vectors is not None:
+        assert box_vectors.shape == (3,3), f"the box vectors shape is: {box_vectors.shape}"
 
     return positions, box_vectors
 

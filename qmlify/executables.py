@@ -134,6 +134,7 @@ def extract_and_subsample_forward_works(i,j,phase,state,annealing_steps, parent_
     """
     import glob
     import os
+    import numpy as np
     from qmlify.utils import exp_distribution
 
     #define a posiiton and work template
@@ -142,7 +143,7 @@ def extract_and_subsample_forward_works(i,j,phase,state,annealing_steps, parent_
 
     #query the positions/work template
     positions_filenames = glob.glob(positions_template)
-    position_index_extractions = {int(filename.split('.')[4][4:]): os.path.join(parent_dir, i) for i in positions_filenames} #make a dict of indices
+    position_index_extractions = {int(i.split('.')[4][4:]): os.path.join(parent_dir, i) for i in positions_filenames} #make a dict of indices
     works_filenames = glob.glob(works_template)
     corresponding_work_filenames = {int(i.split('.')[4][4:]): os.path.join(parent_dir, i) for i in works_filenames}
 
@@ -158,6 +159,8 @@ def extract_and_subsample_forward_works(i,j,phase,state,annealing_steps, parent_
     #normalize
     work_indices, work_values = list(works.keys()), np.array(list(works.values()))
     normalized_work_values = exp_distribution(work_values)
+
+    assert all(len(item)>0 for item in [work_indices, work_values, normalized_work_values])
 
     resamples = np.random.choice(work_indices, num_resamples, p = normalized_work_values)
     return resamples
@@ -265,12 +268,14 @@ def propagation_admin(ligand_index_pairs,
 
     """
     import os
+    import numpy as np
     import glob
     from qmlify.qmlify_data import yaml_keys #template
     from qmlify.utils import write_bsub_delete
     from pkg_resources import resource_filename
 
     _logger.info(f"administrating ensemble {direction} job executions...")
+    _logger.debug(f"the extraction indices are: {extraction_indices}")
 
     if sh_template is None:
         _logger.info(f"there is no .sh template specified; using default template")
@@ -281,6 +286,9 @@ def propagation_admin(ligand_index_pairs,
     yaml_dict['direction'] = direction
 
     if direction =='ani_endstate':
+        assert type(extraction_indices) == int, f"extraction indices must be an int; it is of type {type(extraction_indices)}"
+        num_extractions = extraction_indices
+        from qmlify.executables import extract_and_subsample_forward_works
         if eq_steps is None: eq_steps = annealing_steps
         yaml_dict['num_steps'] = eq_steps
     else:
@@ -293,6 +301,7 @@ def propagation_admin(ligand_index_pairs,
         _logger.debug(f"there are no modifying integrator_kwargs for qmlify submission...")
 
     if direction == 'backward':
+        from qmlify.executables import backward_extractor
         if eq_steps is None: eq_steps = annealing_steps
         _logger.debug(f"direction is backward; 'eq_steps' is not defined; extracting {annealing_steps} (annealing steps) as default")
 
@@ -321,14 +330,16 @@ def propagation_admin(ligand_index_pairs,
                     yaml_dict['positions_cache_filename'] = posit_filename
 
                 if direction == 'ani_endstate':
-                    from qmlify.executables import extract_and_subsample_forward_works
-                    assert type(extraction_indices) == int
+                    _logger.debug(f"querying forward works and positions to resample with {num_extractions} resamples...")
                     #we need to pull works and subsample
-                    extraction_indices = extract_and_subsample_forward_works(i,j,phase,state,annealing_steps, parent_dir, extraction_indices)
-                    extraction_indices = range(extraction_indices)
-                    np.savez(os.path.join(parent_dir, f"forward_resamples.npz"), extraction_indices)
+                    extraction_indices = extract_and_subsample_forward_works(i,j,phase,state,annealing_steps, parent_dir, num_extractions) 
+                    _logger.debug(f"indices extracted: {extraction_indices}")
+                    #extraction_indices = range(len(extraction_indices))
+                    resample_file = os.path.join(parent_dir, f"lig{i}to{j}.{phase}.{state}.{annealing_steps}_steps.forward_resamples.npz")
+                    assert not os.path.exists(resample_file), f"{resample_file} already exists; aborting"
+                    np.savez(resample_file, extraction_indices)
                 elif direction == 'backward':
-                    from qmlify.executables import backward_extractor
+                    _logger.debug(f"extracting positions for backward annealing...")
                     extraction_indices = backward_extractor(i,j,phase, state, eq_steps, parent_dir)
 
                 for idx in range(len(extraction_indices)):

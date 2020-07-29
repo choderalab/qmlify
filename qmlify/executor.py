@@ -28,7 +28,7 @@ def run(setup_dict):
 
     #load positions and box vectors
     positions, box_vectors = position_extractor(positions_cache_filename = setup_dict['positions_cache_filename'], index_to_extract = setup_dict['position_extraction_index'])
-    positions * unit.nanometers
+    positions *= unit.nanometers
     if box_vectors is not None: box_vectors *= unit.nanometers
 
 
@@ -87,7 +87,7 @@ def run(setup_dict):
     work_array = np.array(propagator.state_works[0])
 
     if particle_state.box_vectors is not None:
-        np.savez(setup_dict['out_positions_npz'], positions=particle_state.positions.value_in_unit_system(unit.md_unit_system), box_vectors = particle_state.box_vectors.value_in_unit_system(unit.md_unit_system))
+        np.savez(setup_dict['out_positions_npz'], positions=np.array([particle_state.positions.value_in_unit_system(unit.md_unit_system)]), box_vectors = np.array([particle_state.box_vectors.value_in_unit_system(unit.md_unit_system)]))
     else:
         np.savez(setup_dict['out_positions_npz'], positions=particle_state.positions.value_in_unit_system(unit.md_unit_system))
     np.savez(setup_dict['out_works_npz'], works = work_array)
