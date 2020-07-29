@@ -14,6 +14,8 @@ Copyright (c) 2020, Chodera Lab
 ### Authors
 - dominic rufa
 - Hannah E. Bruce Macdonald
+- Josh Fass
+- Marcus Wieder
 
 
 #### Acknowledgements
