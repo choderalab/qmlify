@@ -258,7 +258,7 @@ def propagation_admin(ligand_index_pairs,
             integration kwargs
         eq_steps : int, default None
             only used for 'backward' 'ani_endstate', direction to specify which set of equilibrium snapshots at the ani_endstate will be annealed backward;
-            if None, will use annealing steps
+            if None and direction in ['ani_endstate', 'backward'], then will raise Exception
         write_log : bool, default False
             whether to write the logger for the submission
         sh_template : str, default None
@@ -291,7 +291,9 @@ def propagation_admin(ligand_index_pairs,
         assert type(extraction_indices) == int, f"extraction indices must be an int; it is of type {type(extraction_indices)}"
         num_extractions = extraction_indices #pull the number of extractions
         from qmlify.executables import extract_and_subsample_forward_works
-        if eq_steps is None: eq_steps = annealing_steps #if the number of eq_steps is not specified, use annealing_steps as a proxy
+        if eq_steps is None:
+            raise Exception(f"eq_steps must be specified in the 'ani_endstate' regime")
+        _logger.debug(f"direction is 'ani_endstate'; conducting {eq_steps} of equilibrium decorrelation at ani endstate")
         yaml_dict['num_steps'] = eq_steps #set the number of eq steps to the yaml dict
     else: #if the direction is not equilibrium, then the number of steps is just equilibrium
         yaml_dict['num_steps'] = annealing_steps
@@ -304,8 +306,9 @@ def propagation_admin(ligand_index_pairs,
 
     if direction == 'backward': #if the direction is backward, then we check if eq_steps is defined to pull approriate ani_endstates; else, annealing steps is the proxy
         from qmlify.executables import backward_extractor
-        if eq_steps is None: eq_steps = annealing_steps
-        _logger.debug(f"direction is backward; 'eq_steps' is not defined; extracting {annealing_steps} (annealing steps) as default")
+        if eq_steps is None:
+            raise Exception(f"eq_steps must be specified in the 'backward' regime")
+        _logger.debug(f"direction is backward; extracting 'ani_endstate' positions with {eq_steps} equilibrium steps")
 
     for i,j in ligand_index_pairs: #iterate over ligand index pairs first
         _logger.debug(f"lig{i}to{j}: ")
