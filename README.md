@@ -5,11 +5,17 @@ qmlify
 [![codecov](https://codecov.io/gh/REPLACE_WITH_OWNER_ACCOUNT/qmlify/branch/master/graph/badge.svg)](https://codecov.io/gh/REPLACE_WITH_OWNER_ACCOUNT/qmlify/branch/master)
 
 
-free energy calculations with ANI2x
+receptor:ligand binding free energy calculations with hybrid ML/MM potentials.
 
 ### Copyright
 
 Copyright (c) 2020, Chodera Lab
+
+### Authors
+- dominic rufa
+- Hannah E. Bruce Macdonald
+- Josh Fass
+- Marcus Wieder
 
 
 #### Acknowledgements

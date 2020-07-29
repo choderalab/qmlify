@@ -1,0 +1,13 @@
+#default qmlify yaml
+
+#system : xml filename
+#subset_system : xml filename
+#topology : openmm topology pkl
+#subset_topology : openmm topology pkl
+#positions_cache_filename : npz
+#position_extraction_index : int
+#integrator_kwargs: None
+#direction: forward, backward, ani_endstate
+#num_steps : int
+#out_positions_npz : npz
+#out_works_npz : npz
