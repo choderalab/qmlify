@@ -241,7 +241,9 @@ def propagation_admin(ligand_index_pairs,
         ligand_index_pairs : list of tup of str
             list of ligand tuple indices (e.g. [(0,1), (3,4)])
         annealing_steps : int
-            number of annealing steps
+            number of annealing steps;
+            for forward and backward directions;
+            for the ani_endstate, if eq_steps is None, annealing_steps is used as a proxy
         direction : str
             'forward', 'backward', or 'ani_endstate'
         parent_dir : str
@@ -255,7 +257,7 @@ def propagation_admin(ligand_index_pairs,
         nondefault_integrator_kwarg_dict : dict, default None
             integration kwargs
         eq_steps : int, default None
-            only used for 'backward' direction to specify which set of equilibrium snapshots at the ani_endstate will be annealed backward;
+            only used for 'backward' 'ani_endstate', direction to specify which set of equilibrium snapshots at the ani_endstate will be annealed backward;
             if None, will use annealing steps
         write_log : bool, default False
             whether to write the logger for the submission
@@ -277,62 +279,62 @@ def propagation_admin(ligand_index_pairs,
     _logger.info(f"administrating ensemble {direction} job executions...")
     _logger.debug(f"the extraction indices are: {extraction_indices}")
 
-    if sh_template is None:
+    if sh_template is None: #pull a template for the submission script by default
         _logger.info(f"there is no .sh template specified; using default template")
         sh_template = resource_filename('qmlify', 'data/templates/cpu_daemon.sh')
 
-    yaml_dict = {key: None for key in yaml_keys}
+    yaml_dict = {key: None for key in yaml_keys} #initialize a yaml dict
 
-    yaml_dict['direction'] = direction
+    yaml_dict['direction'] = direction #set the direction of the yaml dict
 
-    if direction =='ani_endstate':
+    if direction =='ani_endstate': # make sure extraction indices is an integer
         assert type(extraction_indices) == int, f"extraction indices must be an int; it is of type {type(extraction_indices)}"
-        num_extractions = extraction_indices
+        num_extractions = extraction_indices #pull the number of extractions
         from qmlify.executables import extract_and_subsample_forward_works
-        if eq_steps is None: eq_steps = annealing_steps
-        yaml_dict['num_steps'] = eq_steps
-    else:
+        if eq_steps is None: eq_steps = annealing_steps #if the number of eq_steps is not specified, use annealing_steps as a proxy
+        yaml_dict['num_steps'] = eq_steps #set the number of eq steps to the yaml dict
+    else: #if the direction is not equilibrium, then the number of steps is just equilibrium
         yaml_dict['num_steps'] = annealing_steps
 
-    if nondefault_integrator_kwarg_dict is not None:
+    if nondefault_integrator_kwarg_dict is not None: #update the integrator kwargs
         _logger.debug(f"modifying integrator_kwargs for yaml qmlify submission...")
         yaml_dict['integrator_kwargs'] = nondefault_integration_kwarg_dict
     else:
         _logger.debug(f"there are no modifying integrator_kwargs for qmlify submission...")
 
-    if direction == 'backward':
+    if direction == 'backward': #if the direction is backward, then we check if eq_steps is defined to pull approriate ani_endstates; else, annealing steps is the proxy
         from qmlify.executables import backward_extractor
         if eq_steps is None: eq_steps = annealing_steps
         _logger.debug(f"direction is backward; 'eq_steps' is not defined; extracting {annealing_steps} (annealing steps) as default")
 
-    for i,j in ligand_index_pairs:
+    for i,j in ligand_index_pairs: #iterate over ligand index pairs first
         _logger.debug(f"lig{i}to{j}: ")
-        for phase in phases:
+        for phase in phases: #then iterate over phases
             _logger.debug(f"phase: {phase}")
-            for state in backers:
+            for state in backers: #then iterate over states
                 _logger.debug(f"{state}: ")
-                system_filename = os.path.join(parent_dir, f"lig{i}to{j}", f"{phase}.{state}_system.xml")
-                subset_system_filename = os.path.join(parent_dir, f"lig{i}to{j}", f"vacuum.{state}_system.xml")
+                system_filename = os.path.join(parent_dir, f"lig{i}to{j}", f"{phase}.{state}_system.xml") #define the system filename
+                subset_system_filename = os.path.join(parent_dir, f"lig{i}to{j}", f"vacuum.{state}_system.xml") #define the subset system filename
+                topology_filename = os.path.join(parent_dir, f"lig{i}to{j}", f"{phase}.{state}_topology.pkl") #define the topology filename
+                subset_topology_filename = os.path.join(parent_dir, f"lig{i}to{j}", f"vacuum.{state}_topology.pkl") #define the subset topology filename
 
-                topology_filename = os.path.join(parent_dir, f"lig{i}to{j}", f"{phase}.{state}_topology.pkl")
-                subset_topology_filename = os.path.join(parent_dir, f"lig{i}to{j}", f"vacuum.{state}_topology.pkl")
-
+                #add all of the previous to the yaml dict
                 yaml_dict['system'] = system_filename
                 yaml_dict['subset_system'] = subset_system_filename
                 yaml_dict['topology'] = topology_filename
                 yaml_dict['subset_topology'] = subset_topology_filename
 
-                if direction == 'forward':
+                if direction == 'forward': #in the forward direction, we just extract the starting positions from the MM simulations
                     if state == 'old':
                         posit_filename = os.path.join(parent_dir, f"lig{i}to{j}", f"ligandAlambda0_{phase}.positions.npz")
                     else:
                         posit_filename =os.path.join(parent_dir, f"lig{i}to{j}", f"ligandBlambda1_{phase}.positions.npz")
                     yaml_dict['positions_cache_filename'] = posit_filename
 
-                if direction == 'ani_endstate':
+                if direction == 'ani_endstate': # if the direction is eq at ani endstate, we have to subsample the forward works
                     _logger.debug(f"querying forward works and positions to resample with {num_extractions} resamples...")
                     #we need to pull works and subsample
-                    extraction_indices = extract_and_subsample_forward_works(i,j,phase,state,annealing_steps, parent_dir, num_extractions) 
+                    extraction_indices = extract_and_subsample_forward_works(i,j,phase,state,annealing_steps, parent_dir, num_extractions)
                     _logger.debug(f"indices extracted: {extraction_indices}")
                     #extraction_indices = range(len(extraction_indices))
                     resample_file = os.path.join(parent_dir, f"lig{i}to{j}.{phase}.{state}.{annealing_steps}_steps.forward_resamples.npz")
@@ -342,10 +344,18 @@ def propagation_admin(ligand_index_pairs,
                     _logger.debug(f"extracting positions for backward annealing...")
                     extraction_indices = backward_extractor(i,j,phase, state, eq_steps, parent_dir)
 
-                for idx in range(len(extraction_indices)):
-                    traj_work_file_prefix = f"lig{i}to{j}.{phase}.{state}.{direction}.idx_{idx}.{annealing_steps}_steps"
 
-                    #extraction_index
+                for idx in range(len(extraction_indices)):
+                    if direction == 'forward':
+                        traj_work_file_prefix = f"lig{i}to{j}.{phase}.{state}.{direction}.idx_{idx}.{annealing_steps}_steps"
+                    elif direction == 'ani_endstate':
+                        traj_work_file_prefix = f"lig{i}to{j}.{phase}.{state}.{direction}.idx_{extraction_indices[idx]}.{eq_steps}_steps"
+                    elif direction == 'backward':
+                        traj_work_file_prefix = f"lig{i}to{j}.{phase}.{state}.{direction}.idx_{extraction_indices[idx]}.{annealing_steps}_steps"
+
+
+                    #extraction_index; the index to extract is pre-specified in the forward direction, but at the ani_endstate and backward, it is 0
+                    #since there is only one snapshot saved to each .npz
                     extraction_index = extraction_indices[idx] if direction=='forward' else 0
                     yaml_dict['position_extraction_index'] = extraction_index
 
