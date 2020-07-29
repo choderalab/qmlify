@@ -343,15 +343,16 @@ def propagation_admin(ligand_index_pairs,
                 elif direction == 'backward':
                     _logger.debug(f"extracting positions for backward annealing...")
                     extraction_indices = backward_extractor(i,j,phase, state, eq_steps, parent_dir)
+                    resample_file = os.path.join(parent_dir, f"lig{i}to{j}.{phase}.{state}.{eq_steps}_steps.backward_samples.npz")
+                    assert not os.path.exists(resample_file), f"{resample_file} already exists; aborting"
+                    np.savez(resample_file, extraction_indices)
 
 
-                for idx in range(len(extraction_indices)):
-                    if direction == 'forward':
+                for idx in range(len(extraction_indices)): #all have to be named uniquely
+                    if direction in ['forward', 'backward']:
                         traj_work_file_prefix = f"lig{i}to{j}.{phase}.{state}.{direction}.idx_{idx}.{annealing_steps}_steps"
-                    elif direction == 'ani_endstate':
-                        traj_work_file_prefix = f"lig{i}to{j}.{phase}.{state}.{direction}.idx_{extraction_indices[idx]}.{eq_steps}_steps"
-                    elif direction == 'backward':
-                        traj_work_file_prefix = f"lig{i}to{j}.{phase}.{state}.{direction}.idx_{extraction_indices[idx]}.{annealing_steps}_steps"
+                    else:
+                        traj_work_file_prefix = f"lig{i}to{j}.{phase}.{state}.{direction}.idx_{idx}.{eq_steps}_steps"
 
 
                     #extraction_index; the index to extract is pre-specified in the forward direction, but at the ani_endstate and backward, it is 0
