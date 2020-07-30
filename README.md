@@ -60,25 +60,37 @@ and finally, `backward` NEQ:
 ```
 propagation_admin(ligand_indices, annealing_steps=5000, direction = 'backward', parent_dir = os.getcwd(), extraction_indices = 100, phases = ['solvent', 'complex'], write_log=True, cat_outputs=True, delete_outputs=False, eq_steps=5000)
 ```
-These commands will generate `.npz` files containing a `numpy` array of *cumulative* reduced work values (for each ligand in each pair, for each phase, and for each trajectory launched), the last of which is the total reduced work performed *on* the trajectory over the protocol.  Forward and backward work distributions can be extracted, and the free energy correction of each phase can be computed (in kT) with the Bennett Acceptance Ratio (BAR) to find the maximum likelihood estimate of the free energy.
-For example, to compute the free energy correction of ligand `0` in the `lig0to12` transformation,
+These commands will generate `.npz` files containing a `numpy` array of *cumulative* reduced work values (for each ligand in each pair, for each phase, and for each trajectory launched), the last of which is the total reduced work performed *on* the trajectory over the protocol. Each `work` file has a default form of `lig{i}to{j}.{phase}.{old/new}.{direction}.idx_{snapshot_index}.{annealing_steps}.works.npz` where `i`, `j` are ligand index pairs, `phase` is either 'complex' or 'solvent', `old/new` denotes whether the work array corresponds to ligand `i` (old) or `j` (new), `direction` is 'forward' or 'backward', `snapshot_index` is which configuration index is annealed, and `annealing_steps` denotes the number of integration steps in the NEQ protocol. Forward and backward work distributions can be extracted, and the free energy correction of each phase can be computed (in kT) with the Bennett Acceptance Ratio (BAR) to find the maximum likelihood estimate of the free energy.
+
+The `work` files can be queried, and BAR free energy corrections computed for each phase:
+```
+from qmlify.executables import extract_free_energies, compute_corrections
+complex_dictionary = extract_free_energies(ligand_indices, phase='complex', method='BAR')
+solvent_dictionary = extract_free_energies(ligand_indices, phase='solvent', method='BAR')
+free_energy_corrections = compute_corrections(complex = complex_dictionary, solvent=solvent_dictionary)
+```
+
+A complete absolute and relative free energy correction calculation for the Tyk2 system can be found at `qmlify/data/tyk2/tyk2_works.ipynb`. The correction to the `perses ` MM free energy calculations can be found at `qmlify/data/tyk2/Tyk2.ipynb`.
+
+Torsion profile calculations between the MM and ML/MM states (as seen in Fig. 8 of the preprint) can be found at `qmlify/data/tyk2/torsions.py`.
 
 ## Copyright
 
 Copyright (c) 2020, Chodera Lab
 
-### Authors
+## Authors
 - dominic rufa
 - Hannah E. Bruce Macdonald
 - Josh Fass
 - Marcus Wieder
 
 
-#### Acknowledgements
+## Acknowledgements
 
 Project based on the
 [Computational Molecular Science Python Cookiecutter](https://github.com/molssi/cookiecutter-cms) version 1.3.
 
+If you found this repository helpful, consider citing:
 ```
 @article {Rufa2020.07.29.227959,
         author = {Rufa, Dominic A. and Bruce Macdonald, Hannah E. and Fass, Josh and Wieder, Marcus and Grinaway, Patrick B. and Roitberg, Adrian E. and Isayev, Olexandr and Chodera, John D.},
