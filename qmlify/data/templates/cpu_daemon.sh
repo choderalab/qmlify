@@ -10,7 +10,7 @@
 #BSUB -e  %J.e
 
 # Set cpu options.
-#BSUB -n 4 -R "rusage[mem=8]"
+#BSUB -n 2 -R "rusage[mem=8]"
 #BSUB -q cpuqueue
 
 #quit on first error
