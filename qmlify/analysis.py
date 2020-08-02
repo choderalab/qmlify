@@ -7,6 +7,9 @@ import numpy as np
 import os
 
 DEFAULT_WORK_TEMPLATE = 'lig{i}to{j}.{phase}.{state}.{direction}.idx_{idx}.{annealing_steps}_steps.works.npz'
+DEFAULT_POSITION_TEMPLATE = 'lig{i}to{j}.{phase}.{state}.{direction}.idx_{idx}.{annealing_steps}_steps.positions.npz'
+
+
 
 def aggregate_per_pair_works(ligand_indices, annealing_steps, directions = ['forward', 'backward'], states = ['old', 'new'], parent_dir = os.getcwd()):
     """
@@ -147,3 +150,117 @@ def work_file_extractor(i, j, phase, state, direction, annealing_steps, parent_d
     work_filenames = glob.glob(work_query_filename)
     index_extractions = {int(filename.split('.')[4][4:]): os.path.join(parent_dir, filename) for filename in work_filenames}
     return index_extractions
+
+def write_positions_as_pdbs(i, j, phase, state, annealing_steps, parent_dir, topology_pkl, direction='forward', output_pdb_filename=None):
+    """
+    extract the positions files for an array of annealing steps and write the ligand positions to a pdb;
+    this is primarily used to extract and view post-annealing snapshots for sanity checks (i.e. to make sure molecules aren't exploding)
+    
+    arguments
+        i : int
+            start ligand
+        j : int
+            end ligand
+        phase : str
+            phase
+        state : str
+            old/new
+        direction : str, default 'forward'
+            direction
+        annealing_steps : int
+            number of annealing steps
+        parent_dir : str
+            parent dir where 'positions.npz's live
+        topology_pkl : str
+            name of pickled openmm topology file
+        output_pdb_filename : str, default None
+            output pdb
+
+    will output a pdb of the form: 
+    
+    example:
+        >>> import os
+        >>> from qmlify.analysis import write_positions_to_pdbs
+        >>> #let's query lig0to4, old, solvent (the more difficult transform), forward, at 500, 1000, 5000, 10000 annealing steps from cwd
+        >>> annealing_list=[500, 1000, 5000, 10000]
+        >>> for step in annealing_list: write_positions_to_pdbs(0,4,'solvent', 'old', step, os.getcwd(), 'lig0to4/solvent.old_topology.pkl')
+            
+    """
+    from qmlify.analysis import work_file_extractor
+    import pickle
+    import mdtraj
+    import glob
+    import os
+    import numpy as np
+    import tqdm
+
+    query_template = os.path.join(parent_dir, '.'.join(DEFAULT_POSITION_TEMPLATE.split('.')[:4]) + '.*.' + '.'.join(DEFAULT_POSITION_TEMPLATE.split('.')[5:])) 
+    query_filename = query_template.format(i=i, j=j, phase=phase, state=state, direction=direction, annealing_steps=annealing_steps)
+    filenames_list = glob.glob(query_filename)
+    index_extractions = {int(filename.split('.')[4][4:]): os.path.join(parent_dir, filename) for filename in filenames_list}
+
+    work_files = work_file_extractor(i, j, phase, state, direction, annealing_steps, parent_dir)
+    
+    from openeye import oechem
+    with open(topology_pkl, 'rb') as f:
+        topology = pickle.load(f)
+    
+    md_topology = mdtraj.Topology.from_openmm(topology)
+    subset_indices = md_topology.select('resname MOL')
+    
+    positions = []
+    snapshots = []
+    counter=0
+    for snapshot_index, filename in tqdm.tqdm(sorted(index_extractions.items())):
+        try:
+            frame = np.load(filename)['positions'][0]
+            work_value = np.load(work_files[snapshot_index])['works'][-1]
+            snapshots.append([counter, work_value])
+            positions.append(frame[subset_indices,:])
+            counter+=1
+        except Exception as e:
+            print(e)
+
+    traj = mdtraj.Trajectory(xyz=np.array(positions), topology = md_topology.subset(subset_indices))
+    if output_pdb_filename is None:
+        output_pdb_filename = f"lig{i}to{j}.{state}.{direction}.{annealing_steps}_steps.aggregate.pdb"
+    else:
+        assert output_pdb_filename[-3:] == 'pdb'
+    output_array_filename = output_pdb_filename[:-3] + 'npz'
+
+    traj.save(os.path.join(parent_dir, output_pdb_filename))
+    np.savez(np.array(snapshots), os.path.join(parent_dir, output_array_filename))
+
+
+def extract_work_calibrations(ligand_tuple, annealing_steps, phase, direction, state, parent_dir):
+    """
+    extract work calibration steps
+            
+    arguments
+        ligand_indices : list of tup
+            list of tupled ligand indices (e.g. [(a,b), (a,c), ...])
+        annealing_steps : list
+            list of annealing steps to extract
+        phases : list
+            list of phases to extract
+        directions : list of str, default ['forward', 'backward']
+            list of directions
+        states : list of str, default ['old', 'new']
+            list of states corresponding to ligand indices
+        parent_dir : str, default os.getcwd() (i.e. current directory)
+            path to directory that holds the work .npz file
+        
+        nested dictionary of keys: [ligand pair (tup)] : [state ('old'/'new')] : [phase ('solvent'/'complex')] : [direction ('forward'/'backward')] : [file_index : total work (kT)]
+
+    """
+    logger_dict = {}
+    for annealing_step in annealing_steps:
+        step_dict = {phase: annealing_step}
+        aggregation_dict = aggregate_per_pair_works([ligand_tuple], 
+                                                    step_dict, 
+                                                    directions = [direction], 
+                                                    states = [state], 
+                                                    parent_dir = parent_dir)
+        logger_dict[annealing_step] = np.array(aggregation_dict[ligand_tuple][annealing_step][phase][direction].values())
+    
+    return logger_dict
