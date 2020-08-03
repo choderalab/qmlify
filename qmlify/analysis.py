@@ -222,6 +222,7 @@ def write_positions_as_pdbs(i, j, phase, state, annealing_steps, parent_dir, top
             print(e)
 
     traj = mdtraj.Trajectory(xyz=np.array(positions), topology = md_topology.subset(subset_indices))
+
     if output_pdb_filename is None:
         output_pdb_filename = f"lig{i}to{j}.{state}.{direction}.{annealing_steps}_steps.aggregate.pdb"
     else:
@@ -229,7 +230,7 @@ def write_positions_as_pdbs(i, j, phase, state, annealing_steps, parent_dir, top
     output_array_filename = output_pdb_filename[:-3] + 'npz'
 
     traj.save(os.path.join(parent_dir, output_pdb_filename))
-    np.savez(np.array(snapshots), os.path.join(parent_dir, output_array_filename))
+    np.savez(os.path.join(parent_dir, output_array_filename), np.array(snapshots))
 
 
 def extract_work_calibrations(ligand_tuple, annealing_steps, phase, direction, state, parent_dir):
@@ -261,6 +262,6 @@ def extract_work_calibrations(ligand_tuple, annealing_steps, phase, direction, s
                                                     directions = [direction], 
                                                     states = [state], 
                                                     parent_dir = parent_dir)
-        logger_dict[annealing_step] = np.array(aggregation_dict[ligand_tuple][annealing_step][phase][direction].values())
+        logger_dict[annealing_step] = np.array(list(aggregation_dict[ligand_tuple][state][phase][direction].values()))
     
     return logger_dict
