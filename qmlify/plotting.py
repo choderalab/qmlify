@@ -153,3 +153,142 @@ def generate_work_distribution_plots(work_dict,
         plt.tight_layout()
         fig.savefig(f"{out_prefix}.lig{start}to{end}.pdf")
         ligand_counter += ligands_per_plot
+
+def plot_calibration(solvent_dict=None,
+                     complex_dict=None,
+                     timestep_in_fs = 2.0,
+                     fig_width=8.5,
+                     fig_height=7.5,
+                     suptitle = None,
+                     plot_name = "calibration.pdf"):
+    """
+    make a calibration plot for the work standard deviation w.r.t. annealing time; write plot to disk
+    NOTE : each dict is of the form returned by `qmlify.analyis. extract_work_calibrations`
+
+    arguments
+        solvent_dict : dict, default None
+            dict of [annealing_steps: work_array]
+        complex_dict : dict, default None
+            dict of [annealing_steps : work_array]
+        timestep_in_fs : float, default 2.0
+            timestep size in fs
+        fig_width : float, default 8.5
+            figure width in inches
+        fig_height : float, default 7.5
+            figure height in inches
+        suptitle : str, default None
+            the sup title of the plot
+        plot_name : str
+            name to write to (end in .png or .pdf)
+    """
+    from qmlify.analysis import bootstrap, compute_CIs
+    fig = plt.figure(figsize=(fig_width, fig_height))
+    plot_solvent=True if solvent_dict is not None else False
+    plot_complex=True if complex_dict is not None else False
+
+    if plot_solvent and plot_complex:
+        complex_ax = fig.add_subplot(2,2,1)
+        solvent_ax = fig.add_subplot(2,2,3)
+        plotter_ax = fig.add_subplot(1,2,2)
+    elif plot_solvent and not plot_complex:
+        solvent_ax = fig.add_subplot(1,2,1)
+        plotter_ax = fig.add_subplot(1,2,2)
+    elif plot_complex and not plot_solvent:
+        complex_ax = fig.add_subplot(1,2,1)
+        plotter_ax = fig.add_subplot(1,2,2)
+
+    #define an offset...
+    if plot_solvent:
+        solvent_keys = list(solvent_dict.keys())
+        offset = np.mean(solvent_dict[solvent_keys[0]])
+
+    #set xlims
+    mins, maxs = [], []
+    if plot_solvent:
+        mins += [np.min(val) for val in solvent_dict.values()]
+        maxs += [np.max(val) for val in solvent_dict.values()]
+    if plot_complex:
+        mins += [np.min(val) for val in complex_dict.values()]
+        maxs += [np.max(val) for val in complex_dict.values()]
+
+    xlims = (min(mins), max(maxs))
+
+
+
+    #set labels..
+    if plot_solvent:
+        solvent_ax.set_xlabel(f"work [kT]")
+        solvent_ax.get_yaxis().set_ticks([])
+
+
+    if plot_solvent:
+        color_counter = 0
+        for annealing_step in solvent_dict.keys():
+            sns.distplot(solvent_dict[annealing_step] - offset, color = cycle[color_counter], label = f"{annealing_step*timestep_in_fs/1000} ps", ax=solvent_ax)
+            color_counter +=1
+        solvent_ax.legend()
+        solvent_ax.set_xlim(xlims[0] - offset - 5, xlims[1] - offset + 5)
+        solvent_ax.set_title(f"solvent")
+        solvent_ax.set_ylabel("$P(work)$")
+
+    if plot_complex:
+        color_counter = 0
+        for annealing_step in compleX_dict.keys():
+            sns.distplot(complex_dict[annealing_step] - offset, color = cycle[color_counter], label = f"{annealing_step*timestep_in_fs/1000} ps", ax=complex_ax)
+            color_counter +=1
+        complex_ax.legend()
+        complex_ax.set_xlim(xlims[0] - offset - 5, xlims[1] - offset + 5)
+        complex_ax.set_title(f"complex")
+        complex_ax.set_ylabel("$P(work)$")
+
+    #plotter ax
+    if plot_solvent:
+        work_stddev = [np.std(vals) for vals in solvent_dict.values()]
+        bounds = [compute_CIs(bootstrap(val, np.std, num_resamples=10000), alpha=0.95) for val in solvent_dict.values()]
+
+        for idx in range(len(solvent_dict)):
+            y = work_stddev[idx]
+            fix_bounds = np.array(bounds[idx])
+            fix_bounds[0] = y - fix_bounds[0]
+            fix_bounds[1] = fix_bounds[1] - y
+            plotter_ax.errorbar(list(solvent_dict.keys())[idx]*timestep_in_fs/1000,
+                                y,
+                                ls='None',
+                                marker = 'o',
+                                color = cycle[idx],
+                                yerr = fix_bounds.reshape(2,1),
+                                alpha=0.5,
+                                markersize=10,
+                                elinewidth=3)
+        plotter_ax.set_xscale('log')
+        plotter_ax.set_xlabel(f"annealing time [ps]")
+        plotter_ax.set_ylabel(f"work standard deviation [kT]")
+
+    if plot_complex:
+        work_stddev = [np.std(vals) for vals in complex_dict.values()]
+        bounds = [compute_CIs(bootstrap(val, np.std, num_resamples=10000), alpha=0.95) for val in complex_dict.values()]
+
+        for idx in range(len(complex_dict)):
+            y = work_stddev[idx]
+            fix_bounds = np.array(bounds[idx])
+            fix_bounds[0] = y - fix_bounds[0]
+            fix_bounds[1] = fix_bounds[1] - y
+            plotter_ax.errorbar(list(complex_dict.keys())[idx]*timestep_in_fs/1000,
+                                y,
+                                ls='None',
+                                marker = 'o',
+                                color = cycle[idx],
+                                yerr = fix_bounds.reshape(2,1),
+                                alpha=0.5,
+                                markersize=10,
+                                elinewidth=3)
+        plotter_ax.set_xscale('log')
+        plotter_ax.set_xlabel(f"annealing time [ps]")
+        plotter_ax.set_ylabel(f"work standard deviation [kT]")
+
+    plt.tight_layout()
+
+    if suptitle is not None:
+        fig.suptitle(suptitle)
+
+    fig.savefig(plot_name)

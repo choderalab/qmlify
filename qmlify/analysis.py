@@ -155,7 +155,7 @@ def write_positions_as_pdbs(i, j, phase, state, annealing_steps, parent_dir, top
     """
     extract the positions files for an array of annealing steps and write the ligand positions to a pdb;
     this is primarily used to extract and view post-annealing snapshots for sanity checks (i.e. to make sure molecules aren't exploding)
-    
+
     arguments
         i : int
             start ligand
@@ -176,15 +176,15 @@ def write_positions_as_pdbs(i, j, phase, state, annealing_steps, parent_dir, top
         output_pdb_filename : str, default None
             output pdb
 
-    will output a pdb of the form: 
-    
+    will output a pdb of the form:
+
     example:
         >>> import os
         >>> from qmlify.analysis import write_positions_to_pdbs
         >>> #let's query lig0to4, old, solvent (the more difficult transform), forward, at 500, 1000, 5000, 10000 annealing steps from cwd
         >>> annealing_list=[500, 1000, 5000, 10000]
         >>> for step in annealing_list: write_positions_to_pdbs(0,4,'solvent', 'old', step, os.getcwd(), 'lig0to4/solvent.old_topology.pkl')
-            
+
     """
     from qmlify.analysis import work_file_extractor
     import pickle
@@ -194,20 +194,20 @@ def write_positions_as_pdbs(i, j, phase, state, annealing_steps, parent_dir, top
     import numpy as np
     import tqdm
 
-    query_template = os.path.join(parent_dir, '.'.join(DEFAULT_POSITION_TEMPLATE.split('.')[:4]) + '.*.' + '.'.join(DEFAULT_POSITION_TEMPLATE.split('.')[5:])) 
+    query_template = os.path.join(parent_dir, '.'.join(DEFAULT_POSITION_TEMPLATE.split('.')[:4]) + '.*.' + '.'.join(DEFAULT_POSITION_TEMPLATE.split('.')[5:]))
     query_filename = query_template.format(i=i, j=j, phase=phase, state=state, direction=direction, annealing_steps=annealing_steps)
     filenames_list = glob.glob(query_filename)
     index_extractions = {int(filename.split('.')[4][4:]): os.path.join(parent_dir, filename) for filename in filenames_list}
 
     work_files = work_file_extractor(i, j, phase, state, direction, annealing_steps, parent_dir)
-    
+
     from openeye import oechem
     with open(topology_pkl, 'rb') as f:
         topology = pickle.load(f)
-    
+
     md_topology = mdtraj.Topology.from_openmm(topology)
     subset_indices = md_topology.select('resname MOL')
-    
+
     positions = []
     snapshots = []
     counter=0
@@ -235,7 +235,7 @@ def write_positions_as_pdbs(i, j, phase, state, annealing_steps, parent_dir, top
 def extract_work_calibrations(ligand_tuple, annealing_steps, phase, direction, state, parent_dir):
     """
     extract work calibration steps
-            
+
     arguments
         ligand_indices : list of tup
             list of tupled ligand indices (e.g. [(a,b), (a,c), ...])
@@ -249,18 +249,44 @@ def extract_work_calibrations(ligand_tuple, annealing_steps, phase, direction, s
             list of states corresponding to ligand indices
         parent_dir : str, default os.getcwd() (i.e. current directory)
             path to directory that holds the work .npz file
-        
-        nested dictionary of keys: [ligand pair (tup)] : [state ('old'/'new')] : [phase ('solvent'/'complex')] : [direction ('forward'/'backward')] : [file_index : total work (kT)]
+
+    returns
+        logger_dict : dict
+            dict of annealing_steps : work_distribution
 
     """
     logger_dict = {}
     for annealing_step in annealing_steps:
         step_dict = {phase: annealing_step}
-        aggregation_dict = aggregate_per_pair_works([ligand_tuple], 
-                                                    step_dict, 
-                                                    directions = [direction], 
-                                                    states = [state], 
+        aggregation_dict = aggregate_per_pair_works([ligand_tuple],
+                                                    step_dict,
+                                                    directions = [direction],
+                                                    states = [state],
                                                     parent_dir = parent_dir)
         logger_dict[annealing_step] = np.array(aggregation_dict[ligand_tuple][annealing_step][phase][direction].values())
-    
+
     return logger_dict
+
+
+
+def bootstrap(original_data, statistic, num_resamples):
+    """
+    bootstrap some data
+    """
+    import numpy as np
+    out_data = []
+    for iteration in range(num_resamples):
+        data = np.random.choice(original_data, len(original_data))
+        stat = statistic(data)
+        out_data.append(stat)
+    return np.array(out_data)
+
+
+def compute_CIs(data, alpha=0.95):
+    """
+    compute confidence interval for a bootstrapped set of data...
+    """
+    n = len(data)
+    data = sorted(data)
+    lower_bound, upper_bound = int(n*(1-alpha)/2), int(n*(1+alpha)/2)
+    return data[lower_bound], data[upper_bound]
