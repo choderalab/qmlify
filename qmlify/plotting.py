@@ -230,8 +230,10 @@ def plot_calibration(solvent_dict=None,
         solvent_ax.set_xlim(xlims[0] - offset - 5, xlims[1] - offset + 5)
         solvent_ax.set_title(f"solvent")
         solvent_ax.set_ylabel("$P(work)$")
+        if plot_complex: complex_ax.xaxis.set_ticklabels([])
 
     if plot_complex:
+        complex_ax.get_yaxis().set_ticks([])
         color_counter = 0
         for annealing_step in complex_dict.keys():
             sns.distplot(complex_dict[annealing_step] - offset, color = cycle[color_counter], label = f"{annealing_step*timestep_in_fs/1000} ps", ax=complex_ax)
@@ -247,6 +249,7 @@ def plot_calibration(solvent_dict=None,
         bounds = [compute_CIs(bootstrap(val, np.std, num_resamples=10000), alpha=0.95) for val in solvent_dict.values()]
 
         for idx in range(len(solvent_dict)):
+            label = 'solvent' if idx==0 else None
             y = work_stddev[idx]
             fix_bounds = np.array(bounds[idx])
             fix_bounds[0] = y - fix_bounds[0]
@@ -259,7 +262,9 @@ def plot_calibration(solvent_dict=None,
                                 yerr = fix_bounds.reshape(2,1),
                                 alpha=0.5,
                                 markersize=10,
-                                elinewidth=3)
+                                elinewidth=3,
+                                label=label)
+            if idx==0: plotter_ax.legend()
         plotter_ax.set_xscale('log')
         plotter_ax.set_xlabel(f"annealing time [ps]")
         plotter_ax.set_ylabel(f"work standard deviation [kT]")
@@ -269,6 +274,7 @@ def plot_calibration(solvent_dict=None,
         bounds = [compute_CIs(bootstrap(val, np.std, num_resamples=10000), alpha=0.95) for val in complex_dict.values()]
 
         for idx in range(len(complex_dict)):
+            label = 'complex' if idx==0 else None
             y = work_stddev[idx]
             fix_bounds = np.array(bounds[idx])
             fix_bounds[0] = y - fix_bounds[0]
@@ -276,12 +282,14 @@ def plot_calibration(solvent_dict=None,
             plotter_ax.errorbar(list(complex_dict.keys())[idx]*timestep_in_fs/1000,
                                 y,
                                 ls='None',
-                                marker = 'o',
+                                marker = '^',
                                 color = cycle[idx],
                                 yerr = fix_bounds.reshape(2,1),
                                 alpha=0.5,
                                 markersize=10,
-                                elinewidth=3)
+                                elinewidth=3,
+                                label = label)
+            if idx==0: plotter_ax.legend()
         plotter_ax.set_xscale('log')
         plotter_ax.set_xlabel(f"annealing time [ps]")
         plotter_ax.set_ylabel(f"work standard deviation [kT]")
