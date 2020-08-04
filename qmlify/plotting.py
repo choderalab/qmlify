@@ -233,7 +233,7 @@ def plot_calibration(solvent_dict=None,
 
     if plot_complex:
         color_counter = 0
-        for annealing_step in compleX_dict.keys():
+        for annealing_step in complex_dict.keys():
             sns.distplot(complex_dict[annealing_step] - offset, color = cycle[color_counter], label = f"{annealing_step*timestep_in_fs/1000} ps", ax=complex_ax)
             color_counter +=1
         complex_ax.legend()
