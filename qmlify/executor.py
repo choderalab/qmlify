@@ -17,6 +17,9 @@ def run(setup_dict):
     from coddiwomple.particles import Particle
     from coddiwomple.openmm.states import OpenMMParticleState
     from qmlify.utils import load_yaml, deserialize_xml, position_extractor, generate_propagator_inputs, depickle
+    import torch
+    
+    torch.set_num_threads(6) #setting the number of threads because problems
 
     #pull systems
     system = deserialize_xml(setup_dict['system'])
