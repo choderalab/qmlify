@@ -2,7 +2,7 @@
 
 #Set the job name and wall time limit
 #BSUB -J "daemon"
-#BSUB -W 6:00
+#BSUB -W 8:00
 
 # Set the output and error output paths.
 ##BSUB -o  %J.o
