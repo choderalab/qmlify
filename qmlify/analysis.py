@@ -6,7 +6,7 @@ analysis tools for checking MM -> ML/MM absolute and relative free energies
 from simtk import unit
 import numpy as np
 import os
-from beryllium import plotting, stats
+from arsenic import plotting, stats
 import networkx as nx
 from openmmtools.constants import kB
 import copy
