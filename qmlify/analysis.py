@@ -17,6 +17,8 @@ kT = kB * temperature
 DEFAULT_WORK_TEMPLATE = 'lig{i}to{j}.{phase}.{state}.{direction}.idx_{idx}.{annealing_steps}_steps.works.npz'
 DEFAULT_POSITION_TEMPLATE = 'lig{i}to{j}.{phase}.{state}.{direction}.idx_{idx}.{annealing_steps}_steps.positions.npz'
 
+DEFAULT_MM_POSITION_TEMPLATE = 'lig{i}to{j}/ligand{letter}lambda{_lambda}_{phase}.positions.npz'
+
 
 def aggregate_per_pair_works(ligand_indices, annealing_steps, directions = ['forward', 'backward'], states = ['old', 'new'], parent_dir = os.getcwd()):
     """
@@ -152,7 +154,7 @@ def work_file_extractor(i, j, phase, state, direction, annealing_steps, parent_d
     index_extractions = {int(filename.split('.')[4][4:]): os.path.join(parent_dir, filename) for filename in work_filenames}
     return index_extractions
 
-def write_positions_as_pdbs(i, j, phase, state, annealing_steps, parent_dir, topology_pkl, direction='forward', output_pdb_filename=None):
+def write_positions_as_pdbs(i, j, phase, state, annealing_steps, parent_dir, topology_pkl, direction='forward', output_pdb_filename=None, selection_string='resname MOL'):
     """
     extract the positions files for an array of annealing steps and write the ligand positions to a pdb;
     this is primarily used to extract and view post-annealing snapshots for sanity checks (i.e. to make sure molecules aren't exploding)
@@ -196,32 +198,40 @@ def write_positions_as_pdbs(i, j, phase, state, annealing_steps, parent_dir, top
     import numpy as np
     import tqdm
 
-    query_template = os.path.join(parent_dir, '.'.join(DEFAULT_POSITION_TEMPLATE.split('.')[:4]) + '.*.' + '.'.join(DEFAULT_POSITION_TEMPLATE.split('.')[5:]))
-    query_filename = query_template.format(i=i, j=j, phase=phase, state=state, direction=direction, annealing_steps=annealing_steps)
-    filenames_list = glob.glob(query_filename)
-    index_extractions = {int(filename.split('.')[4][4:]): os.path.join(parent_dir, filename) for filename in filenames_list}
-
-    work_files = work_file_extractor(i, j, phase, state, direction, annealing_steps, parent_dir)
-
     from openeye import oechem
     with open(topology_pkl, 'rb') as f:
         topology = pickle.load(f)
-
     md_topology = mdtraj.Topology.from_openmm(topology)
-    subset_indices = md_topology.select('resname MOL')
+    subset_indices = md_topology.select(selection_string)
 
-    positions = []
-    snapshots = []
-    counter=0
-    for snapshot_index, filename in tqdm.tqdm(sorted(index_extractions.items())):
-        try:
-            frame = np.load(filename)['positions'][0]
-            work_value = np.load(work_files[snapshot_index])['works'][-1]
-            snapshots.append([counter, work_value])
-            positions.append(frame[subset_indices,:])
-            counter+=1
-        except Exception as e:
-            print(e)
+    if direction not 'mm_endstate':
+        query_template = os.path.join(parent_dir, '.'.join(DEFAULT_POSITION_TEMPLATE.split('.')[:4]) + '.*.' + '.'.join(DEFAULT_POSITION_TEMPLATE.split('.')[5:]))
+        query_filename = query_template.format(i=i, j=j, phase=phase, state=state, direction=direction, annealing_steps=annealing_steps)
+        filenames_list = glob.glob(query_filename)
+        index_extractions = {int(filename.split('.')[4][4:]): os.path.join(parent_dir, filename) for filename in filenames_list}
+
+        work_files = work_file_extractor(i, j, phase, state, direction, annealing_steps, parent_dir)
+
+        positions = []
+        snapshots = []
+        counter=0
+        for snapshot_index, filename in tqdm.tqdm(sorted(index_extractions.items())):
+            try:
+                frame = np.load(filename)['positions'][0]
+                work_value = np.load(work_files[snapshot_index])['works'][-1]
+                snapshots.append([counter, work_value])
+                positions.append(frame[subset_indices,:])
+                counter+=1
+            except Exception as e:
+                print(e)
+        positions = np.array(positions)
+    elif direction=='mm_endstate':
+        #we are just going to pull the _before_ annealing trajectories
+        letter, _lambda = ('A', 0) if state=='old' else ('B', 1)
+        query_template = os.path.join(parent_dir, DEFAULT_MM_POSITION_TEMPLATE.format(i=i, j=j, _lambda=_lambda, letter=letter, phase=phase))
+        positions = np.load(query_template)['positions']
+    else:
+        raise Exception(f"{direction} is not a supported direction")
 
     traj = mdtraj.Trajectory(xyz=np.array(positions), topology = md_topology.subset(subset_indices))
 
