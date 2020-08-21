@@ -74,7 +74,7 @@ work_pair_dictionary = aggregate_pair_works(ligand_indices, annealing_steps = {'
 aggregated_work_dictionary, concatenated_work_dictionary = fully_aggregate_work_dict(work_pair_dictionary) #process the pair dictionary into something that is easier to analyze
 np.savez('work_dictionaries.npz', aggregated_work_dictionary, concatenated_work_dictionary) #save into a compressed file
 ```
-. Once the `work_dictionary.npz` is generated, can check out `experiments/free_energy_corrections.ipynb`, which demonstrates how to query the work dictionary, calculate BAR free energy estimates, plot the work distributions per ligand, per phase, and perform MM-to-MM/ML free energy corrections (with plots). 
+.See the function documentation for `kwargs` in `qmlify.analysis` for a more complete description. Once the `work_dictionary.npz` is generated, see `experiments/free_energy_corrections.ipynb`, which demonstrates how to query the work dictionary, calculate BAR free energy estimates, plot the work distributions per ligand, per phase, and perform MM-to-MM/ML free energy corrections (with plots). 
 
 ## Copyright
 
