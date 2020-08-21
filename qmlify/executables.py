@@ -104,7 +104,7 @@ def extract_perses_repex_to_local(from_dir, to_dir, phases = ['complex', 'solven
             bv_frames = np.array(bv_frames)
             np.savez(os.path.join(to_dir, f"{lig}_{phase}.positions.npz"), positions = positions, box_vectors = bv_frames)
 
-def extract_and_subsample_forward_works(i,j,phase,state,annealing_steps, parent_dir, num_resamples):
+def extract_and_subsample_forward_works(i,j,phase,state,annealing_steps, parent_dir, num_resamples, resample=True):
     """
     after forward annealing, query the output positions and work files;
     in the event that some fail, they will not be written;
@@ -126,6 +126,8 @@ def extract_and_subsample_forward_works(i,j,phase,state,annealing_steps, parent_
             full path of the parent dir of lig{i}to{j}
         num_resamples : int
             number of resamples to pull
+        resample : bool, default True
+            whether to actually resample or just return the full list
 
     returns
         resamples : np.array(num_resamples)
@@ -158,11 +160,16 @@ def extract_and_subsample_forward_works(i,j,phase,state,annealing_steps, parent_
 
     #normalize
     work_indices, work_values = list(works.keys()), np.array(list(works.values()))
-    normalized_work_values = exp_distribution(work_values)
 
-    assert all(len(item)>0 for item in [work_indices, work_values, normalized_work_values])
+    if resample:
+        normalized_work_values = exp_distribution(work_values)
 
-    resamples = np.random.choice(work_indices, num_resamples, p = normalized_work_values)
+        assert all(len(item)>0 for item in [work_indices, work_values, normalized_work_values])
+
+        resamples = np.random.choice(work_indices, num_resamples, p = normalized_work_values)
+    else:
+        resamples = work_indices
+
     return resamples
 
 def backward_extractor(i,j,phase, state, annealing_steps, parent_dir):
@@ -233,7 +240,8 @@ def propagation_admin(ligand_index_pairs,
                               write_log=False,
                               sh_template=None,
                               cat_outputs = False,
-                              delete_outputs=True):
+                              delete_outputs=True,
+                              resample=True):
     """
     performs ensemble annealing in the forward direction
 
@@ -267,6 +275,8 @@ def propagation_admin(ligand_index_pairs,
             whether to cat the bsub .sh files
         delete_outputs : bool, default True
             whether to delete the bsub .sh files
+        resample : bool, default True
+            whether to resample at the 'ani_endstate'; not used otherwise...
 
     """
     import os
@@ -337,7 +347,7 @@ def propagation_admin(ligand_index_pairs,
                 if direction == 'ani_endstate': # if the direction is eq at ani endstate, we have to subsample the forward works
                     _logger.debug(f"querying forward works and positions to resample with {num_extractions} resamples...")
                     #we need to pull works and subsample
-                    extraction_indices = extract_and_subsample_forward_works(i,j,phase,state,annealing_steps, parent_dir, num_extractions)
+                    extraction_indices = extract_and_subsample_forward_works(i,j,phase,state,annealing_steps, parent_dir, num_extractions, resample=resample)
                     _logger.debug(f"indices extracted: {extraction_indices}")
                     #extraction_indices = range(len(extraction_indices))
                     resample_file = os.path.join(parent_dir, f"lig{i}to{j}.{phase}.{state}.{annealing_steps}_steps.forward_resamples.npz")

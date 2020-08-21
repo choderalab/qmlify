@@ -1,6 +1,6 @@
 # qmlify
 ==============================
-[//]: # (Badges)
+[]: # (Badges)
 [![GitHub Actions Build Status](https://github.com/REPLACE_WITH_OWNER_ACCOUNT/qmlify/workflows/CI/badge.svg)](https://github.com/REPLACE_WITH_OWNER_ACCOUNT/qmlify/actions?query=branch%3Amaster+workflow%3ACI)
 [![codecov](https://codecov.io/gh/REPLACE_WITH_OWNER_ACCOUNT/qmlify/branch/master/graph/badge.svg)](https://codecov.io/gh/REPLACE_WITH_OWNER_ACCOUNT/qmlify/branch/master)
 
@@ -21,10 +21,16 @@ You will also need the latest `conda` release of [Perses](https://github.com/cho
 ```
 conda install -c omnia perses
 ```
-as well as a couple of classes from [coddiwomple](https://github.com/choderalab/coddiwomple):
+
+as well as a couple of classes from [coddiwomple](https://github.com/choderalab/coddiwomple) and [Arsenic](https://github.com/openforcefield/Arsenic):
+
 ```
 git clone https://github.com/choderalab/coddiwomple.git
 cd coddiwomple
+python setup.py install
+
+git clone https://github.com/openforcefield/Arsenic.git
+cd arsenic
 python setup.py install
 ```
 
@@ -32,11 +38,11 @@ python setup.py install
 `qmlify` postprocesses `perses` free energy calculations. You will need `perses` MM relative free energy calculation data before you can post-process it with `qmlify`
 
 ### Perses
-You can execute `perses` relative free energy calculations on the Tyk2 congeneric inhibitors with `qmlify/data/tyk2/inputs/submit-ligpairs.sh` on your platform. Ligands `.sdf` files, system `.xml`s, and the protein `.pdb` are also found in `qmlify/data/tyk2/inputs`.
+See `experiments/mm_data/README.md` for instructions on running `perses` replica exchange relative free energy calculations. A set of pre-generated `perses` simulation data is provided at `experiments/mm_data`, which are queried and analyzed in a demonstration at `experiments/free_energy_corrections.ipynb`.
 
 ### qmlify
 `qmlify` uses bidirectional nonequilibrium (NEQ) free energy calculations to anneal from the MM thermodynamic states (afforded by `perses`) to the hybrid ML/MM thermodynamics states (and back).
-Once `perses` free energy calculations are complete, you can extract and reformat the necessary `perses` files using:
+Once `perses` free energy calculations are complete, you can extract and reformat the necessary `perses` files for the purpose of conducting a MM-to-ML/MM corrections using:
 ```
 from qmlify.executables import perses_extraction_admin
 ligand_indices = [(0,12),(0,7),(10,13),(10,6),(11,0),(11,14),(14,2),(14,8),(14,9),(15,14),(15,4),(1,13),(1,6),(2,7),(3,0),(3,13),(4,12),(4,13),(4,14),(4,5),(4,9),(5,0),(6,0),(8,0)]  # the full set of ligand index pairs for Tyk2
@@ -62,17 +68,15 @@ propagation_admin(ligand_indices, annealing_steps=5000, direction = 'backward', 
 ```
 These commands will generate `.npz` files containing a `numpy` array of *cumulative* reduced work values (for each ligand in each pair, for each phase, and for each trajectory launched), the last of which is the total reduced work performed *on* the trajectory over the protocol. Each `work` file has a default form of `lig{i}to{j}.{phase}.{old/new}.{direction}.idx_{snapshot_index}.{annealing_steps}.works.npz` where `i`, `j` are ligand index pairs, `phase` is either 'complex' or 'solvent', `old/new` denotes whether the work array corresponds to ligand `i` (old) or `j` (new), `direction` is 'forward' or 'backward', `snapshot_index` is which configuration index is annealed, and `annealing_steps` denotes the number of integration steps in the NEQ protocol. Forward and backward work distributions can be extracted, and the free energy correction of each phase can be computed (in kT) with the Bennett Acceptance Ratio (BAR) to find the maximum likelihood estimate of the free energy.
 
-The `work` files can be queried, and BAR free energy corrections computed for each phase:
+The `work` files can be queried and saved for each phase with:
 ```
-from qmlify.executables import extract_free_energies, compute_corrections
-complex_dictionary = extract_free_energies(ligand_indices, phase='complex', method='BAR')
-solvent_dictionary = extract_free_energies(ligand_indices, phase='solvent', method='BAR')
-free_energy_corrections = compute_corrections(complex = complex_dictionary, solvent=solvent_dictionary)
+import numpy as np
+from qmlify.analysis import aggregate_pair_works, fully_aggregate_work_dict
+work_pair_dictionary = aggregate_pair_works(ligand_indices, annealing_steps = {'complex': 5000, 'solvent':5000}) #this may take a few minutes
+aggregated_work_dictionary, concatenated_work_dictionary = fully_aggregate_work_dict(work_pair_dictionary) #process the pair dictionary into something that is easier to analyze
+np.savez('work_dictionaries.npz', aggregated_work_dictionary, concatenated_work_dictionary) #save into a compressed file
 ```
-
-A complete absolute and relative free energy correction calculation for the Tyk2 system can be found at `qmlify/data/tyk2/tyk2_works.ipynb`. The correction to the `perses ` MM free energy calculations can be found at `qmlify/data/tyk2/Tyk2.ipynb`.
-
-Torsion profile calculations between the MM and ML/MM states (as seen in Fig. 8 of the preprint) can be found at `qmlify/data/tyk2/torsions.py`.
+.See the function documentation for `kwargs` in `qmlify.analysis` for a more complete description. Once the `work_dictionary.npz` is generated, see `experiments/free_energy_corrections.ipynb`, which demonstrates how to query the work dictionary, calculate BAR free energy estimates, plot the work distributions per ligand, per phase, and perform MM-to-MM/ML free energy corrections (with plots). 
 
 ## Copyright
 
