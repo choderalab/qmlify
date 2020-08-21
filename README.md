@@ -1,4 +1,4 @@
-qmlify
+# qmlify
 ==============================
 []: # (Badges)
 [![GitHub Actions Build Status](https://github.com/REPLACE_WITH_OWNER_ACCOUNT/qmlify/workflows/CI/badge.svg)](https://github.com/REPLACE_WITH_OWNER_ACCOUNT/qmlify/actions?query=branch%3Amaster+workflow%3ACI)
@@ -21,7 +21,9 @@ You will also need the latest `conda` release of [Perses](https://github.com/cho
 ```
 conda install -c omnia perses
 ```
+
 as well as a couple of classes from [coddiwomple](https://github.com/choderalab/coddiwomple) and [Arsenic](https://github.com/openforcefield/Arsenic):
+
 ```
 git clone https://github.com/choderalab/coddiwomple.git
 cd coddiwomple
