@@ -6,8 +6,8 @@ analysis tools for checking MM -> ML/MM absolute and relative free energies
 from simtk import unit
 import numpy as np
 import os
-from arsenic import plotting, stats
-import networkx as nx
+# from arsenic import plotting, stats
+# import networkx as nx
 from openmmtools.constants import kB
 import copy
 temperature = 300.0 * unit.kelvin
@@ -128,13 +128,16 @@ def compute_BAR(work_dict):
         for phase in work_dict[ligand].keys():
             forward_works = work_dict[ligand][phase]['forward']
             backward_works = work_dict[ligand][phase]['backward']
+            #determine if these are aggregated...
             forward_work_shape = forward_works.shape
             backward_work_shape = backward_works.shape
-            if len(forward_work_shape) > 1: #these works are not aggregated in total
+            first_entry_is_list = True if (type(forward_works[0]) == list or type(backward_works[0]) == list) else False
+
+            if len(forward_work_shape) > 1 or first_entry_is_list: #these works are not aggregated in total
                 outs = []
                 assert forward_work_shape[0] == backward_work_shape[0], f"the number of forward work arrays is not equal to the number of backward work arrays for {ligand}: {phase}"
                 for fwd_array, bkwd_array in zip(forward_works, backward_works):
-                    dg_tup = BAR(fwd_array, bkwd_array)
+                    dg_tup = BAR(np.array(fwd_array), np.array(bkwd_array))
                     outs.append(dg_tup)
                 BAR_results[ligand][phase] = outs
             else: #these works _are_ aggregated in total
@@ -204,7 +207,7 @@ def write_positions_as_pdbs(i, j, phase, state, annealing_steps, parent_dir, top
     md_topology = mdtraj.Topology.from_openmm(topology)
     subset_indices = md_topology.select(selection_string)
 
-    if direction not 'mm_endstate':
+    if direction != 'mm_endstate':
         query_template = os.path.join(parent_dir, '.'.join(DEFAULT_POSITION_TEMPLATE.split('.')[:4]) + '.*.' + '.'.join(DEFAULT_POSITION_TEMPLATE.split('.')[5:]))
         query_filename = query_template.format(i=i, j=j, phase=phase, state=state, direction=direction, annealing_steps=annealing_steps)
         filenames_list = glob.glob(query_filename)
@@ -342,6 +345,8 @@ def analyze_mlmm(mm_results,
     -------
 
     """
+    from arsenic import plotting, stats
+    import networkx as nx
 
     if isinstance(experimental_error, float):
         experimental_error = len(experimental) * [experimental_error]
