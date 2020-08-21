@@ -29,7 +29,7 @@ From a parent directory containing all `ligXtoY` subdirectories (`X`, `Y` being 
 cd lig{X}to{Y}
 python3 restart_{phase}.py
 ```
-for each phase of interest (e.g. `complex`, `solvent`, `vacuum`). Again, extending the MCMC sampler for a total of 10000 (by default, see `inputs/restart_{phase}.py` `total_steps` `int` variable) iterations can take ~10-20 GPU hrs (depending on the system), so it may be advisable to launch
+for each phase of interest (e.g. `complex`, `solvent`, `vacuum`). `complex` phase requires a `.pdb` filename that references the protein of interest (in the case of Tyk2, the pdb can be found at `inputs/Tyk2_protein.pdb`). Again, extending the MCMC sampler for a total of 10000 (by default, see `inputs/restart_{phase}.py` `total_steps` `int` variable) iterations can take ~10-20 GPU hrs (depending on the system), so it may be advisable to launch
 ```
 for a in `ls -d */`; do cd $a; echo $a; bsub < ../restart-{phase}.sh; cd ..; done
 ```
