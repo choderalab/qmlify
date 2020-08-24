@@ -27,7 +27,7 @@ Each `python3 inputs/run.py $i` can take upwards of an hour to execute. Hence, w
 From a parent directory containing all `ligXtoY` subdirectories (`X`, `Y` being generated relative transformations), replica exchange simulations can be extended manually by calling
 ```
 cd lig{X}to{Y}
-python3 restart_{phase}.py
+python3 ../restart_{phase}.py
 ```
 for each phase of interest (e.g. `complex`, `solvent`, `vacuum`). `complex` phase requires a `.pdb` filename that references the protein of interest (in the case of Tyk2, the pdb can be found at `inputs/Tyk2_protein.pdb`). Again, extending the MCMC sampler for a total of 10000 (by default, see `inputs/restart_{phase}.py` `total_steps` `int` variable) iterations can take ~10-20 GPU hrs (depending on the system), so it may be advisable to launch
 ```
@@ -35,6 +35,13 @@ for a in `ls -d */`; do cd $a; echo $a; bsub < ../restart-{phase}.sh; cd ..; don
 ```
 for each phase (`solvent`, `complex`). Again, it is necessary to modify the `restart-{phase}.sh` to your conda build and environment.
 
-Upon completion, each ligand transformation will generate a `lig{X}to{Y}/out-{phase}.nc` file containing a [Simulation](https://github.com/choderalab/perses/blob/85aa6af259db816f46e99e9272c0ff918e808bd2/perses/analysis/load_simulations.py#L13) object which can be queried (see above) to extract relative free energy differences and errors.
-
-
+#### Saving
+Upon completion, each ligand transformation will generate a `lig{X}to{Y}/out-{phase}.nc` file, which can be loaded as a [Simulation](https://github.com/choderalab/perses/blob/85aa6af259db816f46e99e9272c0ff918e808bd2/perses/analysis/load_simulations.py#L13) object and saved. See
+```
+from perses.analysis.load_simulations import Simulation
+import pickle
+sim = Simulation('lig{X}to{Y}/out-{phase}.nc')
+x.historic_fes(500)
+pickle.dump(x, open( f"{x.directory}.pi", "wb" ) )
+```
+Once the `.pi` files are generated, you can query each relative transformation (see top of `README.md`) for relative binding free energies and errors. See `qmlify/experiments/free_energy_corrections.ipynb` on how to query the `.pi` ensembles to make free energy corrections. 
