@@ -1,4 +1,4 @@
-Please read `free_energy_corrections.ipynb` for processing and analyzing MM _to_ ML/MM free energy corrections (with Tyk2 as an example). [Perses](https://github.com/choderalab/perses) relative free energy calculation results, setup, and references thereto can be found in `./mm_data`.
+Please read `free_energy_corrections.ipynb` for processing and analyzing MM _to_ ML/MM free energy corrections (with Tyk2 as an example). [Perses](https://github.com/choderalab/perses) relative free energy calculation results, setup procedures, and references thereto can be found in `./mm_data`.
 
 Experimental Tyk2 reference absolute binding free energies (ligand by index) in kilocalories per mole live at `tyk2_experimental.npz` and were collected from:
 ```
