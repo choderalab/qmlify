@@ -321,7 +321,7 @@ def _absolute_from_relative(g, experimental, experimental_error):
     -------
 
     """
-    from arsenic import stats
+    from Arsenic import stats
     f_i_calc, C_calc = stats.mle(g, factor='calc_DDG') #compute maximum likelihood estimates of free energies from calculated DDG attribute
     variance = np.diagonal(C_calc) #variance of estimate is diagonal of the calculation matrix
     for i, (f_i, df_i) in enumerate(zip(f_i_calc, variance**0.5)):
