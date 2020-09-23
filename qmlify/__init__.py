@@ -4,7 +4,7 @@ feee energy calculations with ANI2x
 """
 
 # Add imports here
-from .qmlify import *
+from qmlify import *
 
 # Handle versioneer
 from ._version import get_versions
