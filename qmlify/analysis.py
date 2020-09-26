@@ -324,11 +324,11 @@ def _absolute_from_relative(g, experimental, experimental_error):
     from arsenic import stats
     f_i_calc, C_calc = stats.mle(g, factor='calc_DDG') #compute maximum likelihood estimates of free energies from calculated DDG attribute
     variance = np.diagonal(C_calc) #variance of estimate is diagonal of the calculation matrix
-    for i, (f_i, df_i) in enumerate(zip(f_i_calc, variance**0.5)):
-        g.nodes[i]['calc_DG'] = f_i
-        g.nodes[i]['calc_dDG'] = df_i
-        g.nodes[i]['exp_DG'] = experimental[i]
-        g.nodes[i]['exp_dDG'] = experimental_error[i]
+    for i, (n, f_i, df_i) in enumerate(zip(g.nodes(data=True), f_i_calc, variance**0.5)):
+        n[1]['calc_DG'] = f_i
+        n[1]['calc_dDG'] = df_i
+        n[1]['exp_DG'] = experimental[i]
+        n[1]['exp_dDG'] = experimental_error[i]
 
 def _make_mm_graph(mm_results, expt, d_expt):
     """ Make a networkx graph from MM results
@@ -357,9 +357,9 @@ def _make_mm_graph(mm_results, expt, d_expt):
         exp_err = (d_expt[ligA]**2 + d_expt[ligB]**2)**0.5 #define exp error
         mm_g.add_edge(ligA,
                       ligB,
-                      calc_DDG=-sim.bindingdg/sim.bindingdg.unit, #simulation reports A - B
+                      calc_DDG=sim.bindingdg/sim.bindingdg.unit, #simulation reports A - B
                       calc_dDDG=sim.bindingddg/sim.bindingddg.unit,
-                      exp_DDG=(expt[ligB] - expt[ligA]),
+                      exp_DDG=(expt[ligA] - expt[ligB]),
                       exp_err=exp_err) #add edge to the digraph
     _absolute_from_relative(mm_g, expt, d_expt)
     return mm_g
@@ -382,9 +382,9 @@ def _make_ml_graph(mm_g, corrections):
 
     """
     ml_g = copy.deepcopy(mm_g)
-    for node in ml_g.nodes(data=True):
-        node[1]['calc_DG'] = node[1]['calc_DG'] + corrections[node[0]][0]
-        node[1]['calc_dDG'] = (node[1]['calc_dDG']**2 + corrections[node[0]][1]**2)**0.5
+    for i, node in enumerate(ml_g.nodes(data=True)):
+        node[1]['calc_DG'] = node[1]['calc_DG'] + corrections[i][0]
+        node[1]['calc_dDG'] = (node[1]['calc_dDG']**2 + corrections[i][1]**2)**0.5
     return ml_g
 
 def _per_ligand_correction(ml_corrections, kT):
@@ -484,6 +484,7 @@ def _plot_relative(g, name='MM', MM_ff='', ML_ff='', color='k'):
     filename = f"{name.replace('/','-')}_relative.pdf"
     for edge in g.edges(data=True):
         edge[2]['calc_DDG'] = g.nodes[edge[1]]['calc_DG'] - g.nodes[edge[0]]['calc_DG']
+        edge[2]['exp_DDG'] = g.nodes[edge[1]]['exp_DG'] - g.nodes[edge[0]]['exp_DG']
         edge[2]['exp_dDDG'] = (g.nodes[edge[1]]['exp_dDG']**2+g.nodes[edge[0]]['exp_dDG']**2)**0.5
     plotting.plot_DDGs(g, title=f'{name}: {MM_ff}\n {ML_ff}', color=color, filename=filename)
 
