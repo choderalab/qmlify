@@ -1,0 +1,26 @@
+name: qmlify
+channels:
+  - conda-forge
+  - omnia
+  - openeye
+dependencies:
+  - python=3.6
+  - jupyter
+  - numpy
+  - seaborn
+  - scipy
+  - matplotlib
+  - openmm
+  - openmmtools
+  - pymbar
+  - mdtraj
+  - tqdm
+  - networkx
+  - torchani
+  - perses=0.8.1
+  - plotly
+  - scikit-learn
+  - pip
+  - pip:
+    - git+https://github.com/openforcefield/arsenic.git@565bbda9478612eb9d3df2f3184575007c8f85d8
+    - git+https://github.com/choderalab/coddiwomple.git@841ac56314b8979b999b847216dd2475509dcc1f

@@ -28,11 +28,18 @@ as well as a couple of classes from [coddiwomple](https://github.com/choderalab/
 git clone https://github.com/choderalab/coddiwomple.git
 cd coddiwomple
 python setup.py install
+```
 
+While some kinks in `Arsenic` are being ironed out, checkout the `fe8724f` commit:
+```
 git clone https://github.com/openforcefield/Arsenic.git
-cd arsenic
+cd Arsenic
+git checkout fe8724f
 python setup.py install
 ```
+
+### Conda Environment
+For the purposes of rigor and reproducibility, there is a `conda` environment `yaml` file located at `/experiments/environment_droplet.yml`, from which you can create a local environment, as detailed [here](https://docs.conda.io/projects/conda/en/latest/user-guide/tasks/manage-environments.html#creating-an-environment-from-an-environment-yml-file).
 
 ## Use
 `qmlify` postprocesses `perses` free energy calculations. You will need `perses` MM relative free energy calculation data before you can post-process it with `qmlify`
