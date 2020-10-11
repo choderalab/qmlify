@@ -354,13 +354,13 @@ def _make_mm_graph(mm_results, expt, d_expt):
     for sim in mm_results:
         ligA = int(sim.directory[3:].split('to')[0]) #define edges
         ligB = int(sim.directory[3:].split('to')[1])
-        exp_err = (d_expt[ligA]**2 + d_expt[ligB]**2)**0.5 #define exp error
+        exp_dDDG = (d_expt[ligA]**2 + d_expt[ligB]**2)**0.5 #define exp error
         mm_g.add_edge(ligA,
                       ligB,
-                      calc_DDG=sim.bindingdg/sim.bindingdg.unit, #simulation reports A - B
+                      calc_DDG=-sim.bindingdg/sim.bindingdg.unit, #simulation reports A - B
                       calc_dDDG=sim.bindingddg/sim.bindingddg.unit,
                       exp_DDG=(expt[ligB] - expt[ligA]),
-                      exp_err=exp_err) #add edge to the digraph
+                      exp_dDDG=exp_dDDG) #add edge to the digraph
     _absolute_from_relative(mm_g, expt, d_expt)
     return mm_g
 
