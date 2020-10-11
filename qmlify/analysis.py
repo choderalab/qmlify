@@ -357,7 +357,7 @@ def _make_mm_graph(mm_results, expt, d_expt):
         exp_dDDG = (d_expt[ligA]**2 + d_expt[ligB]**2)**0.5 #define exp error
         mm_g.add_edge(ligA,
                       ligB,
-                      calc_DDG=-sim.bindingdg/sim.bindingdg.unit, #simulation reports A - B
+                      calc_DDG=sim.bindingdg/sim.bindingdg.unit, #simulation reports A - B
                       calc_dDDG=sim.bindingddg/sim.bindingddg.unit,
                       exp_DDG=(expt[ligB] - expt[ligA]),
                       exp_dDDG=exp_dDDG) #add edge to the digraph
