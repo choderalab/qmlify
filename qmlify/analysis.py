@@ -324,11 +324,11 @@ def _absolute_from_relative(g, experimental, experimental_error):
     from arsenic import stats
     f_i_calc, C_calc = stats.mle(g, factor='calc_DDG') #compute maximum likelihood estimates of free energies from calculated DDG attribute
     variance = np.diagonal(C_calc) #variance of estimate is diagonal of the calculation matrix
-    for i, (f_i, df_i) in enumerate(zip(f_i_calc, variance**0.5)):
-        g.nodes[i]['calc_DG'] = f_i
-        g.nodes[i]['calc_dDG'] = df_i
-        g.nodes[i]['exp_DG'] = experimental[i]
-        g.nodes[i]['exp_dDG'] = experimental_error[i]
+    for n, f_i, df_i in zip(g.nodes(data=True), f_i_calc, variance**0.5):
+        n[1]['calc_DG'] = f_i
+        n[1]['calc_dDG'] = df_i
+        n[1]['exp_DG'] = experimental[n[0]]
+        n[1]['exp_dDG'] = experimental_error[n[0]]
 
 def _make_mm_graph(mm_results, expt, d_expt):
     """ Make a networkx graph from MM results
@@ -354,13 +354,13 @@ def _make_mm_graph(mm_results, expt, d_expt):
     for sim in mm_results:
         ligA = int(sim.directory[3:].split('to')[0]) #define edges
         ligB = int(sim.directory[3:].split('to')[1])
-        exp_err = (d_expt[ligA]**2 + d_expt[ligB]**2)**0.5 #define exp error
+        exp_dDDG = (d_expt[ligA]**2 + d_expt[ligB]**2)**0.5 #define exp error
         mm_g.add_edge(ligA,
                       ligB,
                       calc_DDG=-sim.bindingdg/sim.bindingdg.unit, #simulation reports A - B
                       calc_dDDG=sim.bindingddg/sim.bindingddg.unit,
                       exp_DDG=(expt[ligB] - expt[ligA]),
-                      exp_err=exp_err) #add edge to the digraph
+                      exp_dDDG=exp_dDDG) #add edge to the digraph
     _absolute_from_relative(mm_g, expt, d_expt)
     return mm_g
 
@@ -484,6 +484,7 @@ def _plot_relative(g, name='MM', MM_ff='', ML_ff='', color='k'):
     filename = f"{name.replace('/','-')}_relative.pdf"
     for edge in g.edges(data=True):
         edge[2]['calc_DDG'] = g.nodes[edge[1]]['calc_DG'] - g.nodes[edge[0]]['calc_DG']
+#        edge[2]['exp_DDG'] = g.nodes[edge[1]]['exp_DG'] - g.nodes[edge[0]]['exp_DG']
         edge[2]['exp_dDDG'] = (g.nodes[edge[1]]['exp_dDG']**2+g.nodes[edge[0]]['exp_dDG']**2)**0.5
     plotting.plot_DDGs(g, title=f'{name}: {MM_ff}\n {ML_ff}', color=color, filename=filename)
 
