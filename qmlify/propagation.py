@@ -611,3 +611,50 @@ class ANIPropagator(Propagator):
         """
         mm_force_matrix = self._compute_hybrid_forces(_lambda = 1.0, particle_state = particle_state).value_in_unit_system(unit.md_unit_system)
         self.integrator.setPerDofVariableByName('modified_force', mm_force_matrix)
+
+class RoundTripPropagator(Propagator):
+    """
+    run molecular dynamics in a round trip fashion, going from state A to B to A where equal time is spend on each route
+    """
+    def __init__(self,
+                     openmm_pdf_state,
+                     openmm_pdf_state_subset,
+                     subset_indices_map,
+                     integrator,
+                     ani_handler,
+                     context_cache=None,
+                     reassign_velocities=True,
+                     n_restart_attempts=0,
+                     reporter=None,
+                     write_trajectory_interval = 1,
+                     **kwargs):
+        super().__init__(
+                         openmm_pdf_state,
+                         openmm_pdf_state_subset,
+                         subset_indices_map,
+                         integrator,
+                         ani_handler,
+                         context_cache=context_cache,
+                         reassign_velocities=reassign_velocities,
+                         n_restart_attempts=n_restart_attempts,
+                         reporter=reporter,
+                         write_trajectory_interval = write_trajectory_interval,
+                         **kwargs)
+        assert self._n_iterations % 2 == 0, f"the number of iterations must be even"
+        self.lambda_function = lambda iter: (2. / self._n_iterations)*iter if iter <= self._n_iterations else (-2.*iter/self._n_iterations)+2
+
+    def _update_current_state_works(self, particle_state):
+        """
+        update the current state and associated works
+        """
+        #get the reduced potential
+        reduced_potential = self._compute_hybrid_potential(_lambda = self.lambda_function(self._iteration), particle_state = particle_state)
+        perturbed_reduced_potential = self._compute_hybrid_potential(_lambda = self.lambda_function(self._iteration + 1.0), particle_state = particle_state)
+        self._current_state_works.append(self._current_state_works[-1] + (perturbed_reduced_potential - reduced_potential))
+
+    def _update_force(self, particle_state):
+        """
+        update the force
+        """
+        mm_force_matrix = self._compute_hybrid_forces(_lambda = self.lambda_function(self._iteration + 1.0), particle_state = particle_state).value_in_unit_system(unit.md_unit_system)
+        self.integrator.setPerDofVariableByName('modified_force', mm_force_matrix)

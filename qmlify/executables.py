@@ -253,7 +253,7 @@ def propagation_admin(ligand_index_pairs,
             for forward and backward directions;
             for the ani_endstate, if eq_steps is None, annealing_steps is used as a proxy
         direction : str
-            'forward', 'backward', or 'ani_endstate'
+            'forward', 'backward', 'fb', or 'ani_endstate'
         parent_dir : str
             parent directory containing 'lig{i}to{j}'
         extraction_indices : list of int or int
@@ -337,7 +337,7 @@ def propagation_admin(ligand_index_pairs,
                 yaml_dict['topology'] = topology_filename
                 yaml_dict['subset_topology'] = subset_topology_filename
 
-                if direction == 'forward': #in the forward direction, we just extract the starting positions from the MM simulations
+                if direction in ['forward', 'fb']: #in the forward direction, we just extract the starting positions from the MM simulations
                     if state == 'old':
                         posit_filename = os.path.join(parent_dir, f"lig{i}to{j}", f"ligandAlambda0_{phase}.positions.npz")
                     else:
@@ -362,7 +362,7 @@ def propagation_admin(ligand_index_pairs,
 
 
                 for idx in range(len(extraction_indices)): #all have to be named uniquely
-                    if direction in ['forward', 'backward']:
+                    if direction in ['forward', 'backward', 'fb']:
                         traj_work_file_prefix = f"lig{i}to{j}.{phase}.{state}.{direction}.idx_{idx}.{annealing_steps}_steps"
                     else:
                         traj_work_file_prefix = f"lig{i}to{j}.{phase}.{state}.{direction}.idx_{idx}.{eq_steps}_steps"
@@ -370,7 +370,7 @@ def propagation_admin(ligand_index_pairs,
 
                     #extraction_index; the index to extract is pre-specified in the forward direction, but at the ani_endstate and backward, it is 0
                     #since there is only one snapshot saved to each .npz
-                    extraction_index = extraction_indices[idx] if direction=='forward' else 0
+                    extraction_index = extraction_indices[idx] if direction in ['forward', 'fb'] else 0
                     yaml_dict['position_extraction_index'] = extraction_index
 
                     if direction == 'ani_endstate':
