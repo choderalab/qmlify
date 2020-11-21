@@ -641,20 +641,20 @@ class RoundTripPropagator(Propagator):
                          write_trajectory_interval = write_trajectory_interval,
                          **kwargs)
         assert self._n_iterations % 2 == 0, f"the number of iterations must be even"
-        self.lambda_function = lambda iter: (2. / self._n_iterations)*iter if iter <= self._n_iterations else (-2.*iter/self._n_iterations)+2
+        self.lambda_function = lambda iter, num_iters: (2. / num_iters)*iter if iter <= num_iters else (-2.*iter/num_iters)+2
 
     def _update_current_state_works(self, particle_state):
         """
         update the current state and associated works
         """
         #get the reduced potential
-        reduced_potential = self._compute_hybrid_potential(_lambda = self.lambda_function(self._iteration), particle_state = particle_state)
-        perturbed_reduced_potential = self._compute_hybrid_potential(_lambda = self.lambda_function(self._iteration + 1.0), particle_state = particle_state)
+        reduced_potential = self._compute_hybrid_potential(_lambda = self.lambda_function(self._iteration, self._n_iterations), particle_state = particle_state)
+        perturbed_reduced_potential = self._compute_hybrid_potential(_lambda = self.lambda_function(self._iteration + 1.0, self._n_iterations), particle_state = particle_state)
         self._current_state_works.append(self._current_state_works[-1] + (perturbed_reduced_potential - reduced_potential))
 
     def _update_force(self, particle_state):
         """
         update the force
         """
-        mm_force_matrix = self._compute_hybrid_forces(_lambda = self.lambda_function(self._iteration + 1.0), particle_state = particle_state).value_in_unit_system(unit.md_unit_system)
+        mm_force_matrix = self._compute_hybrid_forces(_lambda = self.lambda_function(self._iteration + 1.0, self._n_iterations), particle_state = particle_state).value_in_unit_system(unit.md_unit_system)
         self.integrator.setPerDofVariableByName('modified_force', mm_force_matrix)
