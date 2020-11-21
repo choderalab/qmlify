@@ -70,6 +70,7 @@ def run(setup_dict):
         prop = ANIPropagator
     elif setup_dict['direction'] == 'fb':
         from qmlify.propagation import RoundTripPropagator
+        prop = RoundTripPropagator
     else:
         raise Exception(f"{setup_dict['direction']} is not valid. allowed directions are 'forward', 'backward', 'ani_endstate', and 'fb'")
 
