@@ -640,7 +640,14 @@ class RoundTripPropagator(Propagator):
                          reporter=reporter,
                          write_trajectory_interval = write_trajectory_interval,
                          **kwargs)
-        self.lambda_function = lambda iter, num_iters: (2. / num_iters)*iter if iter <= (num_iters/2) else (-2.*iter/num_iters)+2
+
+        def lambda_function(iter, num_iters):
+            if iter <= num_iters/2.:
+                return (2.*iter) / num_iters
+            elif iter > num_iters/2:
+                return (-2.*iter/num_iters) + 2
+
+        self.lambda_function = lambda_function
 
     def _update_current_state_works(self, particle_state):
         """
