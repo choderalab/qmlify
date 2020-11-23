@@ -123,9 +123,10 @@ def generate_propagator_inputs(system,
         subset_alch_region = alchemy.AlchemicalRegion(alchemical_atoms=range(pdf_state_subset.system.getNumParticles()), alchemical_torsions=True)
         factory = alchemy.AbsoluteAlchemicalFactory()
         subset_alchemical_system = factory.create_alchemical_system(pdf_state_subset.system, subset_alch_region)
+        alch_state = alchemy.AlchemicalState.from_system(subset_alchemical_system)
         pdf_state_subset_thermo = ThermodynamicState(system = subset_alchemical_system, temperature = temperature)
         pdf_state_subset = CompoundThermodynamicState(thermodynamic_state=pdf_state_subset_thermo,
-                                                   composable_states=[alchemical_state])
+                                                   composable_states=[alch_state])
     else:
         pass
 
