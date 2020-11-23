@@ -120,7 +120,7 @@ def generate_propagator_inputs(system,
 
     if alchemify:
         from openmmtools import alchemy
-        subset_alch_region = alchemy.AlchemicalRegion(alchemical_atoms=list(atom_map.values()), alchemical_torsions=True)
+        subset_alch_region = alchemy.AlchemicalRegion(alchemical_atoms=range(pdf_state_subset.system.getNumParticles()), alchemical_torsions=True)
         factory = alchemy.AbsoluteAlchemicalFactory()
         subset_alchemical_system = factory.create_alchemical_system(pdf_state_subset.system, subset_alch_region)
         pdf_state_subset_thermo = ThermodynamicState(system = subset_alchemical_system, temperature = temperature)
