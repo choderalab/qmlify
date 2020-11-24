@@ -471,7 +471,7 @@ class Propagator(OMMBIP):
         U(x_rec, x_lig) = u_mm,rec(x_rec) - lambda*u_mm,lig(x_lig) + lambda*u_ani,lig(x_lig)
         """
         #get the nonalchemical
-        for key in self._protocol(_lambda).items():
+        for key in self._protocol(_lambda).keys():
             setattr(self.pdf_state_subset, key, 1.)
         self.pdf_state_subset.apply_to_context(self._context_subset)
         self.pdf_state_subset.update_from_context(self._context_subset)
@@ -490,7 +490,7 @@ class Propagator(OMMBIP):
                              - nonalch_energy
                              + (1. - _lambda) * alch_energy
                              + _lambda * self.ani_handler.calculate_energy(self.particle_state_subset.positions) * self.pdf_state.beta)
-                             
+
         return reduced_potential
 
     def _compute_hybrid_forces(self, _lambda, particle_state):
