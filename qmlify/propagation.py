@@ -473,15 +473,15 @@ class Propagator(OMMBIP):
         #get the nonalchemical
         for key in self._protocol(_lambda).keys():
             setattr(self.pdf_state_subset, key, 1.)
-        self.pdf_state_subset.apply_to_context(self._context_subset)
-        self.pdf_state_subset.update_from_context(self._context_subset)
+        self.pdf_state_subset.apply_to_context(self.context_subset)
+        self.pdf_state_subset.update_from_context(self.context_subset)
         nonalch_energy = self.pdf_state_subset.reduced_potential(self.particle_state_subset)
 
         #get the alchemical energy
         for key, val in self._protocol(_lambda).items():
             setattr(self.pdf_state_subset, key, val)
-        self.pdf_state_subset.apply_to_context(self._context_subset)
-        self.pdf_state_subset.update_from_context(self._context_subset)
+        self.pdf_state_subset.apply_to_context(self.context_subset)
+        self.pdf_state_subset.update_from_context(self.context_subset)
         alch_energy = self.pdf_state_subset.reduced_potential(self.particle_state_subset)
 
 
