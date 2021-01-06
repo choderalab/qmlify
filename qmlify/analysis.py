@@ -527,6 +527,10 @@ def analyze_mlmm(mm_results,
 
     Returns
     -------
+    mm_g : nx.Graph
+        graph of mm free energies
+    ml_g : nx.Graph
+        graph of ml free energies
 
     """
     from qmlify.analysis import _make_ml_graph, _make_mm_graph, _plot_absolute, _plot_relative, _per_ligand_correction, _relative_corrections
@@ -549,3 +553,5 @@ def analyze_mlmm(mm_results,
     _plot_absolute(ml_g, experimental, name='ML/MM', MM_ff=MM_ff, ML_ff=ML_ff, color='#D79B00')
     _plot_relative(mm_g, name='MM', MM_ff=MM_ff, color='#6C8EBF')
     _plot_relative(ml_g, name='ML/MM', MM_ff=MM_ff, ML_ff=ML_ff, color='#D79B00')
+
+    return mm_g, ml_g
