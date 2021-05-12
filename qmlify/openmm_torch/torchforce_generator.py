@@ -155,7 +155,7 @@ def torch_alchemification_wrapper(
                              save_filename,
                              torch_scale_name,
                              torch_scale_default_value,
-                             pbc = mod_system._system_forces['NonbondedForce'].usesPeriodicBoundaryConditions())
+                             pbc = hybrid_factory._system_forces['NonbondedForce'].usesPeriodicBoundaryConditions())
 
     mod_system.addForce(torchforce)
     return mod_system, hybrid_factory
