@@ -47,10 +47,17 @@ def make_torchforce(topology,
     import torch
     import torchani
     import openmmtorch
+
+    #get the device
+    _logger.info(f"registering `torch` device...")
+    device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
+    _logger.info(f"found torch device 'cuda': {torch.cuda.is_available()}")
+
+
     if model_name == 'ani1ccx':
-        model = torchani.models.ANI1ccx()
+        model = torchani.models.ANI1ccx().to(device)
     elif model_name == 'ani2x':
-        model = torchani.models.ANI2x()
+        model = torchani.models.ANI2x().to(device)
     else:
         raise Exception(f"model name {model_name} is not currently supported")
 
@@ -60,9 +67,9 @@ def make_torchforce(topology,
     if atoms is not None:
         includedAtoms = [includedAtoms[i] for i in atoms]
     elements = [atom.element.symbol for atom in includedAtoms]
-    print(f"elements: {elements}")
+    _logger.debug(f"elements: {elements}")
     species = model.species_to_tensor(elements).unsqueeze(0)
-    print(f"species: {species}")
+    _logger.debug(f"species: {species}")
     #indices = torch.tensor(atoms, dtype=torch.int64) #get the atom indices which to pull
 
     class ANIForce(torch.nn.Module):
@@ -102,7 +109,7 @@ def make_torchforce(topology,
             return out
 
 
-    f_gen = ANIForce(atoms, model, species) if not pbc else PBCANIForce(atoms, model, species)
+    f_gen = ANIForce(atoms, model, species).to(device) if not pbc else PBCANIForce(atoms, model, species).to(device)
     module = torch.jit.script(f_gen)
 
     # Serialize the compute graph to a file
