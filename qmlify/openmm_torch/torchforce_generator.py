@@ -97,14 +97,14 @@ def make_torchforce(topology,
             self.indices = torch.tensor(indices, dtype=torch.int64)
             self.model = model
             self.species = species
+            self.pbc = torch.tensor([True, True, True], dtype=torch.bool)
 
         def forward(self, positions, boxvectors, scale0, scale1):
-            boxsize = boxvectors.diag()
-            periodicPositions = positions - torch.floor(positions/boxsize)*boxsize
-            periodicPositions = periodicPositions.to(torch.float32) #to float
-            in_positions = periodicPositions[self.indices]
-            _, energy = self.model((self.species, 10.0 * in_positions.unsqueeze(0))) #get the energy
-            #energy = _energy.sum()
+            positions = positions.to(torch.float32) #to float
+            in_positions = in_positions[self.indices]
+            _, energy = self.model((self.species, 10.0 * in_positions.unsqueeze(0)),
+                                   cell=10.0*boxvectors,
+                                   pbc=self.pbc) #get the energy
             out = energy * scale0 * self.energyScale * scale1
             return out
 
