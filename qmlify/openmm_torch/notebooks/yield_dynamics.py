@@ -10,7 +10,7 @@ from qmlify.openmm_torch.utils import prepare_ml_system
 # In[2]:
 
 
-from qmlify.openmm_torch.utils import prepare_ml_system
+from qmlify.openmm_torch.torchforce_generator import torch_alchemification_wrapper
 from qmlify.openmm_torch.test_openmm_torch import get_HostGuestExplicit
 import os
 testsystem_class = get_HostGuestExplicit()
@@ -26,8 +26,7 @@ torch_scale_default_value = 0.
 # In[4]:
 
 
-ml_system, hybrid_factory = prepare_ml_system(
-                          positions = testsystem_class.positions,
+ml_system, hybrid_factory = torch_alchemification_wrapper(
                           topology = testsystem_class.topology,
                           system = testsystem_class.system,
                           residue_indices = [1],
@@ -36,7 +35,7 @@ ml_system, hybrid_factory = prepare_ml_system(
                           torch_scale_name=torch_scale_name,
                           torch_scale_default_value=torch_scale_default_value,
                           HybridSystemFactory_kwargs = {},
-                          minimizer_kwargs = {'maxIterations': 1000}
+                          #minimizer_kwargs = {'maxIterations': 1000}
                           )
 
 
@@ -76,20 +75,20 @@ ml_int = LangevinIntegrator(splitting= 'V0 V1 R O R V1 V0')
 
 # In[9]:
 
-
+print("getting platform")
 platform = configure_platform(utils.get_fastest_platform().getName())
 
 
 # In[10]:
 
-
+print(f"getting contexts")
 nonalch_context = openmm.Context(nonalch_system, nonalch_int, platform)
 ml_context = openmm.Context(ml_system, ml_int, platform)
 
 
 # In[13]:
 
-
+print("setting positions...")
 for context in [nonalch_context, ml_context]:
     context.setPositions(testsystem_class.positions)
     context.setPeriodicBoxVectors(*testsystem_class.system.getDefaultPeriodicBoxVectors())
@@ -106,8 +105,10 @@ from time import time
 
 nonalch_times = []
 ml_times = []
+print(f"running now...")
 
-for i in range(100):
+import tqdm
+for i in tqdm.trange(100):
     timer1 = time()
     nonalch_int.step(1)
     nonalch_times.append(time() - timer1)

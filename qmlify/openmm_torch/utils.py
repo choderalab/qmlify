@@ -281,8 +281,10 @@ def prepare_ml_system(
     # TODO : add a test for scaling lambdas?
 
     # remove the contexts and integrators used for testing (this will shore up some memory)...
+    _logger.debug(f"removing contexts...")
     for context in [old_mm_context, mm_context, ml_context]:
         del context
+    _logger.debug(f"removing integrators...")
     for integrator in [old_mm_int, mm_int, ml_int]:
         del integrator
 
