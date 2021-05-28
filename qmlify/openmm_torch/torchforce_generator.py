@@ -101,9 +101,9 @@ def make_torchforce(topology,
 
         def forward(self, positions, boxvectors, scale0, scale1):
             positions = positions.to(torch.float32) #to float
-            in_positions = in_positions[self.indices]
+            in_positions = positions[self.indices]
             _, energy = self.model((self.species, 10.0 * in_positions.unsqueeze(0)),
-                                   cell=10.0*boxvectors,
+                                   cell=10.0*boxvectors.to(torch.float32),
                                    pbc=self.pbc) #get the energy
             out = energy * scale0 * self.energyScale * scale1
             return out
@@ -137,7 +137,8 @@ def torch_alchemification_wrapper(
                                   model_name='ani2x',
                                   save_filename = 'animodel.pt',
                                   torch_scale_name='torch_scale',
-                                  torch_scale_default_value=0.
+                                  torch_scale_default_value=0.,
+                                  HybridSystemFactory_kwargs = {}
                                 ):
     """
     given a topology/system, and an appropriate* residue index, call the `HybridSystemFactory` to alchemify and generate a new system object.
@@ -153,7 +154,8 @@ def torch_alchemification_wrapper(
     from qmlify.openmm_torch.force_hybridization import HybridSystemFactory
     hybrid_factory = HybridSystemFactory(topology,
                                          residue_indices,
-                                         system)
+                                         system,
+                                         **HybridSystemFactory_kwargs)
     mod_system = copy.deepcopy(hybrid_factory.system)
 
     torchforce = make_torchforce(topology,

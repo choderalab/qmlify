@@ -88,7 +88,8 @@ class HybridSystemFactory(object):
                  alchemical_residue_indices,
                  system,
                  softcore_alpha_sterics = 0.5,
-                 softcore_alpha_electrostatics = 0.5):
+                 softcore_alpha_electrostatics = 0.5,
+                 **kwargs):
         """
         arguments
             topology : openmm.Topology
@@ -101,6 +102,7 @@ class HybridSystemFactory(object):
 
         self._topology = topology # set the whole topology attribute
         self._alchemical_residue_indices = alchemical_residue_indices #set the alchemical residue index
+        self._old_system = system
         self._system = copy.deepcopy(system) #set the system as a deepcopy of the old system
         self._endstate_system = copy.deepcopy(system) # create a system at the opposite endstate for energy bookkeeping purposes
 
