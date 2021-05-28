@@ -186,7 +186,7 @@ def prepare_ml_system(
                                       torch_scale_default_value,
                                     )
     # get platform
-    platform = configure_platform(platform_name = utils.get_fastest_platform())
+    platform = configure_platform(platform_name = utils.get_fastest_platform().getName())
     beta = 1. / (kB * DEFAULT_TEMPERATURE)
 
     # get integrators

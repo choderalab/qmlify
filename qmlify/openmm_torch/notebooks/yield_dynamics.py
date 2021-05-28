@@ -26,7 +26,7 @@ torch_scale_default_value = 0.
 # In[4]:
 
 
-ml_system, hybrid_factory = prepare_ml_system(                          
+ml_system, hybrid_factory = prepare_ml_system(
                           positions = testsystem_class.positions,
                           topology = testsystem_class.topology,
                           system = testsystem_class.system,
@@ -77,7 +77,7 @@ ml_int = LangevinIntegrator(splitting= 'V0 V1 R O R V1 V0')
 # In[9]:
 
 
-platform = configure_platform(utils.get_fastest_platform())
+platform = configure_platform(utils.get_fastest_platform().getName())
 
 
 # In[10]:
@@ -111,12 +111,12 @@ for i in range(100):
     timer1 = time()
     nonalch_int.step(1)
     nonalch_times.append(time() - timer1)
-    
+
     timer2 = time()
     ml_int.step(1)
     ml_times.append(time() - timer2)
-    
-    
+
+
 
 
 # In[18]:
@@ -151,7 +151,3 @@ print(f"the ml context runs {100 * nonalch_mean / ml_mean}% slower than the mm c
 
 
 # In[ ]:
-
-
-
-
