@@ -15,7 +15,8 @@ def make_torchforce(topology,
                              save_filename = 'animodel.pt',
                              torch_scale_name='torch_scale',
                              torch_scale_default_value=0.,
-                             pbc=True):
+                             pbc=True,
+                             use_nnpops=True):
     """
     creates a scalable (via a global parameter) openmm.TorchForce.
     NOTE: this force will belong to forcegroup 1 by default.
@@ -38,6 +39,8 @@ def make_torchforce(topology,
             the default value of the `torch_scale_name`
         pbc : bool
             whether to use periodic boundary conditions
+        use_nnpops : bool
+            whether to use nnpops symmetry functions
 
     returns
         torch_force : openmm.TorchForce
@@ -60,7 +63,7 @@ def make_torchforce(topology,
         model = torchani.models.ANI2x().to(device)
     else:
         raise Exception(f"model name {model_name} is not currently supported")
-
+    
 
     # Create the PyTorch model that will be invoked by OpenMM.
     includedAtoms = list(topology.atoms())
@@ -71,6 +74,17 @@ def make_torchforce(topology,
     species = model.species_to_tensor(elements).unsqueeze(0)
     _logger.debug(f"species: {species}")
     #indices = torch.tensor(atoms, dtype=torch.int64) #get the atom indices which to pull
+
+    # try nnpops
+    if use_nnpops:
+        if not torch.cuda.is_available():
+            raise RuntimeError(f"cuda device is not detected")
+        try:
+            from NNPOps.SymmetryFunctions import TorchANISymmetryFunctions as TASF
+            model.aev_computer = TASF(model.aev_computer)
+        except Exception as e:
+            raise Exception(f"failed to use `TorchANISymmetryFunctions`. error: {e}")
+
 
     class ANIForce(torch.nn.Module):
         def __init__(self, indices, model, species):
@@ -118,7 +132,7 @@ def make_torchforce(topology,
     # Create the TorchForce from the serialized compute graph
     from openmmtorch import TorchForce
     torch_force = TorchForce(save_filename)
-    torch_force.setForceGroup(1) #default 1st force group
+    torch_force.setForceGroup(0) #default 1st force group
 
     if pbc:
         torch_force.setUsesPeriodicBoundaryConditions(True)
@@ -138,7 +152,8 @@ def torch_alchemification_wrapper(
                                   save_filename = 'animodel.pt',
                                   torch_scale_name='torch_scale',
                                   torch_scale_default_value=0.,
-                                  HybridSystemFactory_kwargs = {}
+                                  HybridSystemFactory_kwargs = {},
+                                  use_nnpops=True
                                 ):
     """
     given a topology/system, and an appropriate* residue index, call the `HybridSystemFactory` to alchemify and generate a new system object.
@@ -152,6 +167,7 @@ def torch_alchemification_wrapper(
     """
     import copy
     from qmlify.openmm_torch.force_hybridization import HybridSystemFactory
+    from qmlify.openmm_torch.utils import reorganize_forces_v2
     hybrid_factory = HybridSystemFactory(topology,
                                          residue_indices,
                                          system,
@@ -164,7 +180,9 @@ def torch_alchemification_wrapper(
                              save_filename,
                              torch_scale_name,
                              torch_scale_default_value,
-                             pbc = hybrid_factory._system_forces['NonbondedForce'].usesPeriodicBoundaryConditions())
-
+                             pbc = hybrid_factory._system_forces['NonbondedForce'].usesPeriodicBoundaryConditions(),
+                             use_nnpops=use_nnpops)
+    
+    #out_system = reorganize_forces_v2(mod_system, torchforce)
     mod_system.addForce(torchforce)
     return mod_system, hybrid_factory

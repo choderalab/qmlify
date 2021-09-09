@@ -82,8 +82,8 @@ def configure_platform(platform_name='Reference', fallback_platform_name='CPU', 
 
         check_platform(platform)
 
-    except:
-        _logger.warning("Warning: Returning {} platform instead of requested platform {}".format(fallback_platform_name, platform_name))
+    except Exception as e:
+        _logger.warning("Warning: Returning {} platform instead of requested platform {} because of exception: {}".format(fallback_platform_name, platform_name, e))
         platform = fallback_platform
 
     _logger.info(f"conducting subsequent work with the following platform: {platform.getName()}")
@@ -146,6 +146,67 @@ def get_forces(system):
     for force_idx, force in enumerate(system.getForces()):
         _dict[force.__class__.__name__] = (force, force_idx)
     return _dict
+
+def reorganize_forces(system, new_force):
+    """
+    add a new_force to an existing system but ordered such that the new force is the 0th force
+    
+    arguments
+        system : openmm.System
+        new_force : openmm.Force
+    
+    returns
+        (return in place force)
+    """
+    from copy import copy
+    
+    num_og_forces = system.getNumForces() # get forces
+    new_og_force_list = [] # make an empty list of copy forces
+    for i in range(num_og_forces)[::-1]: # iterate backward over number of forces
+        newforce = copy(system.getForce(i)) # make a copy of the force
+        new_og_force_list.append(newforce) # add the copied force to list
+        system.removeForce(i) # remove the force from existing system
+    
+    system.addForce(new_force) # add the new force first
+    for entry in new_og_force_list[::-1]:
+        system.addForce(entry)    
+
+def reorganize_forces_v2(system, new_force):
+    """
+    copy over all attrs of an existing `System` to a new `System` and be sure to add the `new_force` first
+    TODO : add handling of virtual sites.
+    """
+    from copy import copy
+    
+    num_og_forces = system.getNumForces() # get forces
+    new_og_force_list = [] # make an empty list of copy forces
+    for i in range(num_og_forces)[::-1]: # iterate backward over number of forces
+        newforce = copy(system.getForce(i)) # make a copy of the force
+        new_og_force_list.append(newforce) # add the copied force to list
+
+    new_system = openmm.System()
+
+    # add particles
+    for particle_idx in range(system.getNumParticles()):
+        assert not system.isVirtualSite(particle_idx), f"we do not support vsites"
+        mass = system.getParticleMass(particle_idx)
+        new_system.addParticle(mass)
+    
+    # add constraints
+    for constraint_idx in range(system.getNumConstraints()):
+        p1, p2, length = system.getConstraintParameters(constraint_idx)
+        new_system.addConstraint(p1, p2, length)
+    
+    # pbcs
+    new_system.setDefaultPeriodicBoxVectors(*system.getDefaultPeriodicBoxVectors())
+    
+    # add forces
+    new_system.addForce(new_force) #add the new force first.
+    for _force in new_og_force_list[::-1]:
+        new_system.addForce(_force)
+    
+    return new_system
+        
 
 def prepare_ml_system(
                       positions,
@@ -254,6 +315,11 @@ def prepare_ml_system(
         ml_difference < ENERGY_DIFFERENCE_TOLERANCE
     except Exception as e:
         _logger.warning(f"{e}; difference between energies of the lambda0 alchemical mm and ml energy is {mm_difference}, which is higher than the tolerance of {ENERGY_DIFFERENCE_TOLERANCE}")
+
+
+    _logger.debug(f"taking ml step...")
+    ml_int.step(1)
+    
 
     # we cannot do the following...
 

@@ -38,13 +38,13 @@ def make_HybridSystemFactory(testsystem_class = get_HostGuestExplicit(),
 
 def test_HybridSystemFactory():
     """
-    run the `make_HybridSystemFactory`
+    run the `make_HybridSystemFactory`. There is _no_ call to `openmm_torch` or any of the NNPops functionality. We check to make sure that the nonalchemical energy and the alchemical energy are similar within a tolerance.
     """
     from qmlify.openmm_torch.utils import configure_platform
     from openmmtools import utils
 
     hsf, testsystem_class = make_HybridSystemFactory()
-    platform = configure_platform(platform_name=utils.get_fastest_platform(),
+    platform = configure_platform(platform_name='Reference',
                                   fallback_platform_name='CPU',
                                   precision='mixed')
 
@@ -69,7 +69,7 @@ def test_HybridSystemFactory():
 
 def test_torchforce_generator():
     """
-    simple test to make sure that the torchforce_generator instantiates properly and has a sufficiently low energy mismatch at the alchemical 0 endstate
+    simple test to make sure that the torchforce_generator instantiates properly
     """
     from openmmtools import utils
     from qmlify.openmm_torch.torchforce_generator import torch_alchemification_wrapper
@@ -93,7 +93,7 @@ def test_lambda_dependent_energy_bookkeeping():
                           positions = testsystem_class.positions,
                           topology = testsystem_class.topology,
                           system = testsystem_class.system,
-                          residue_indices = [1],
+                          residue_indices = [1], #this just happens to be true for the host-guest
                           model_name='ani2x',
                           save_filename = 'test.pt',
                           torch_scale_name='torch_scale',
@@ -102,3 +102,13 @@ def test_lambda_dependent_energy_bookkeeping():
                           minimizer_kwargs = {'maxIterations': 100}
                           )
     os.system('rm test.pt')
+
+
+if __name__ == "__main__":
+    test_HybridSystemFactory()
+    print(f"done 1")
+    test_torchforce_generator()
+    print(f"done 2")
+    test_lambda_dependent_energy_bookkeeping()
+    print(f"done 3")
+
