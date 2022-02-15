@@ -156,8 +156,10 @@ def prepare_ml_system(
                       save_filename = 'animodel.pt',
                       torch_scale_name='torch_scale',
                       torch_scale_default_value=0.,
+                      optimize=None,
+                      pbc=True,
                       HybridSystemFactory_kwargs = {},
-                      minimizer_kwargs = {'maxIterations': 1000}
+                      minimizer_kwargs = {'maxIterations': 1000},
                       ):
     """
     prepare an ani-force-compatible system with built-in lambda assertions and energy compatibility assertions
@@ -184,6 +186,8 @@ def prepare_ml_system(
                                       save_filename,
                                       torch_scale_name,
                                       torch_scale_default_value,
+                                      optimize = optimize,
+                                      pbc = pbc
                                     )
     # get platform
     platform = configure_platform(platform_name = utils.get_fastest_platform().getName())

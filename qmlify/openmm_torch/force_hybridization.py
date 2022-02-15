@@ -112,7 +112,7 @@ class HybridSystemFactory(object):
 
         #pull the appropriate atoms
         match_residues = [res for res in topology.residues() if res.index in self._alchemical_residue_indices]
-        _logger.info(f"found {len(match_residues)} from {self._alchemical_residue_indices}")
+        _logger.info(f"found {len(match_residues)} matches from {self._alchemical_residue_indices}")
 
         #define the atoms of the matched residue
         list_of_lists = [[atom.index for atom in match_residue.atoms()] for match_residue in match_residues]

@@ -15,7 +15,8 @@ def make_torchforce(topology,
                              save_filename = 'animodel.pt',
                              torch_scale_name='torch_scale',
                              torch_scale_default_value=0.,
-                             pbc=True):
+                             pbc=True,
+                             optimize=None):
     """
     creates a scalable (via a global parameter) openmm.TorchForce.
     NOTE: this force will belong to forcegroup 1 by default.
@@ -55,11 +56,24 @@ def make_torchforce(topology,
 
 
     if model_name == 'ani1ccx':
-        model = torchani.models.ANI1ccx().to(device)
+        model = torchani.models.ANI1ccx(periodic_table_index=True)
     elif model_name == 'ani2x':
-        model = torchani.models.ANI2x().to(device)
+        model = torchani.models.ANI2x(periodic_table_index=True)
     else:
         raise Exception(f"model name {model_name} is not currently supported")
+
+    if optimize == None:
+        pass
+    elif optimize == 'cuaev':
+        model.aev_computer.use_cuda_extension=True
+    elif optimize == 'nnpops':
+        try:
+            from NNPOps import OptimizedTorchANI
+            model = OptimizedTorchANI(model, species)
+        except Exception as e:
+            raise Exception(e)
+    else:
+        raise ValueError(f"`optimize` of {optimize} is not supported")
 
 
     # Create the PyTorch model that will be invoked by OpenMM.
@@ -67,9 +81,9 @@ def make_torchforce(topology,
     if atoms is not None:
         includedAtoms = [includedAtoms[i] for i in atoms]
     elements = [atom.element.symbol for atom in includedAtoms]
-    _logger.debug(f"elements: {elements}")
-    species = model.species_to_tensor(elements).unsqueeze(0)
-    _logger.debug(f"species: {species}")
+    atomic_numbers = [atom.element.atomic_number for atom in includedAtoms]
+    _logger.debug(f"elements: {elements} \n atomic_numbers: {atomic_numbers}")
+    species = torch.tensor(atomic_numbers).unsqueeze(0)
     #indices = torch.tensor(atoms, dtype=torch.int64) #get the atom indices which to pull
 
     class ANIForce(torch.nn.Module):
@@ -99,17 +113,18 @@ def make_torchforce(topology,
             self.species = species
             self.pbc = torch.tensor([True, True, True], dtype=torch.bool)
 
-        def forward(self, positions, boxvectors, scale0, scale1):
+        def forward(self, positions, boxvectors):
             positions = positions.to(torch.float32) #to float
             in_positions = positions[self.indices]
+            pbc = self.pbc.to(in_positions.device)
             _, energy = self.model((self.species, 10.0 * in_positions.unsqueeze(0)),
                                    cell=10.0*boxvectors.to(torch.float32),
-                                   pbc=self.pbc) #get the energy
-            out = energy * scale0 * self.energyScale * scale1
+                                   pbc=pbc) #get the energy
+            out = energy * self.energyScale
             return out
 
 
-    f_gen = ANIForce(atoms, model, species).to(device) if not pbc else PBCANIForce(atoms, model, species).to(device)
+    f_gen = ANIForce(atoms, model, species) if not pbc else PBCANIForce(atoms, model, species)
     module = torch.jit.script(f_gen)
 
     # Serialize the compute graph to a file
@@ -118,16 +133,23 @@ def make_torchforce(topology,
     # Create the TorchForce from the serialized compute graph
     from openmmtorch import TorchForce
     torch_force = TorchForce(save_filename)
-    torch_force.setForceGroup(1) #default 1st force group
+    torch_force.setForceGroup(0) #default 0th force group
 
     if pbc:
         torch_force.setUsesPeriodicBoundaryConditions(True)
     else:
         torch_force.setUsesPeriodicBoundaryConditions(False)
 
-    torch_force.addGlobalParameter(torch_scale_name, torch_scale_default_value)
-    torch_force.addGlobalParameter(f"auxiliary_{torch_scale_name}", 1.) #auxiliary torch scale
-    return torch_force
+    # wrap with a `CustomCVForce`
+    custom_cv_force = openmm.CustomCVForce(f"auxiliary_{torch_scale_name} * TorchForce * {torch_scale_name}")
+    custom_cv_force.addGlobalParameter(torch_scale_name, torch_scale_default_value)
+    custom_cv_force.addGlobalParameter(f"auxiliary_{torch_scale_name}", 1.)
+    custom_cv_force.addCollectiveVariable('TorchForce', torch_force)
+
+    # torch_force.addGlobalParameter(torch_scale_name, torch_scale_default_value)
+    # torch_force.addGlobalParameter(f"auxiliary_{torch_scale_name}", 1.) #auxiliary torch scale
+    # return torch_force
+    return custom_cv_force
 
 
 def torch_alchemification_wrapper(
@@ -138,7 +160,9 @@ def torch_alchemification_wrapper(
                                   save_filename = 'animodel.pt',
                                   torch_scale_name='torch_scale',
                                   torch_scale_default_value=0.,
-                                  HybridSystemFactory_kwargs = {}
+                                  HybridSystemFactory_kwargs = {},
+                                  optimize = 'nnpops',
+                                  pbc = False,
                                 ):
     """
     given a topology/system, and an appropriate* residue index, call the `HybridSystemFactory` to alchemify and generate a new system object.
@@ -164,7 +188,8 @@ def torch_alchemification_wrapper(
                              save_filename,
                              torch_scale_name,
                              torch_scale_default_value,
-                             pbc = hybrid_factory._system_forces['NonbondedForce'].usesPeriodicBoundaryConditions())
+                             pbc = pbc,
+                             optimize = optimize)
 
     mod_system.addForce(torchforce)
     return mod_system, hybrid_factory
