@@ -18,7 +18,7 @@ def run(setup_dict):
     from coddiwomple.openmm.states import OpenMMParticleState
     from qmlify.utils import load_yaml, deserialize_xml, position_extractor, generate_propagator_inputs, depickle
     import torch
-    
+
     torch.set_num_threads(6) #setting the number of threads because problems
 
     #pull systems
@@ -51,13 +51,19 @@ def run(setup_dict):
             if 'pressure' in integrator_kwargs.keys() and integrator_kwargs['pressure'] is not None: integrator_kwargs['pressure'] *= unit.atmosphere
             default_integrator_kwargs.update(integrator_kwargs)
 
+    if 'alchemify' in list(setup_dict.keys()):
+        alchemify=setup_dict['alchemify']
+        assert type(alchemify) == bool
+    else:
+        alchemify=False
+
     pdf_state, pdf_state_subset, integrator, ani_handler, atom_map = generate_propagator_inputs(system = system,
                                                                                                 system_subset = system_subset,
                                                                                                 md_topology = md_topology,
                                                                                                 md_subset_topology = md_subset_topology,
                                                                                                 ani_model = torchani.models.ANI2x(),
-                                                                                                integrator_kwargs = default_integrator_kwargs)
-
+                                                                                                integrator_kwargs = default_integrator_kwargs,
+                                                                                                alchemify=alchemify)
 
     if setup_dict['direction'] == 'forward':
         from qmlify.propagation import Propagator

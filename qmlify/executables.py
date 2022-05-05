@@ -241,7 +241,8 @@ def propagation_admin(ligand_index_pairs,
                               sh_template=None,
                               cat_outputs = False,
                               delete_outputs=True,
-                              resample=True):
+                              resample=True,
+                              alchemify=False):
     """
     performs ensemble annealing in the forward direction
 
@@ -385,6 +386,7 @@ def propagation_admin(ligand_index_pairs,
 
                     yaml_dict['out_positions_npz'] = os.path.join(parent_dir, traj_work_file_prefix + f".positions.npz")
                     yaml_dict['out_works_npz'] = os.path.join(parent_dir, traj_work_file_prefix + f".works.npz")
+                    yaml_dict['alchemify'] = alchemify
 
                     line_to_write = f"python -c \"from qmlify.executor import run; run({yaml_dict})\" "
                     write_bsub_delete(lines_to_write = [line_to_write],

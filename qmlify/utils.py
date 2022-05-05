@@ -75,6 +75,7 @@ def generate_propagator_inputs(system,
                                                       'splitting': "V R O R F",
                                                       'constraint_tolerance': 1e-6,
                                                       'pressure': 1.0 * unit.atmosphere},
+                                alchemify=False,
                                **kwargs):
     """
     wrapper utility that pre-generates arguments for the Propagator and its subclasses
@@ -105,7 +106,7 @@ def generate_propagator_inputs(system,
         atom_map : dict
             index map of {md_top_atom_index : md_subset_top_atom_index} of the matching atoms where key is the index of the md_topology atom and the value is the index of the matching md_subset_topology atom
     """
-    from openmmtools.states import ThermodynamicState
+    from openmmtools.states import ThermodynamicState, CompoundThermodynamicState
     from qmlify.propagation import ANI_force_and_energy
     from qmlify.propagation import Integrator
 
@@ -116,6 +117,18 @@ def generate_propagator_inputs(system,
     pressure, temperature = integrator_kwargs['pressure'], integrator_kwargs['temperature']
     pdf_state = ThermodynamicState(system = system, temperature = temperature, pressure = pressure)
     pdf_state_subset = ThermodynamicState(system = system_subset, temperature = temperature)
+
+    if alchemify:
+        from openmmtools import alchemy
+        subset_alch_region = alchemy.AlchemicalRegion(alchemical_atoms=range(pdf_state_subset.system.getNumParticles()), alchemical_torsions=True)
+        factory = alchemy.AbsoluteAlchemicalFactory()
+        subset_alchemical_system = factory.create_alchemical_system(pdf_state_subset.system, subset_alch_region)
+        alch_state = alchemy.AlchemicalState.from_system(subset_alchemical_system)
+        pdf_state_subset_thermo = ThermodynamicState(system = subset_alchemical_system, temperature = temperature)
+        pdf_state_subset = CompoundThermodynamicState(thermodynamic_state=pdf_state_subset_thermo,
+                                                   composable_states=[alch_state])
+    else:
+        pass
 
     integrator = Integrator(**integrator_kwargs)
 

@@ -329,6 +329,18 @@ class Propagator(OMMBIP):
                  n_restart_attempts)
 
         #create a pdf state for the subset indices (usually a vacuum system)
+        if openmm_pdf_state_subset.__class__.__name__ == 'CompoundThermodynamicState':
+            self._alchemical=True
+            def protocol(_lambda):
+                x = -4.*(_lambda) + 1 if _lambda <= 0.25 else 0.
+                return {'lambda_electrostatics': x,
+                        'lambda_sterics': x,
+                        'lambda_torsions': x}
+            self._protocol = protocol
+        else:
+            self._alchemical=False
+            self._protocol = None
+
         self.pdf_state_subset = openmm_pdf_state_subset
         assert self.pdf_state_subset.temperature == self.pdf_state.temperature, f"the temperatures of the pdf states do not match"
 
@@ -458,9 +470,27 @@ class Propagator(OMMBIP):
         function to compute the hybrid reduced potential defined as follows:
         U(x_rec, x_lig) = u_mm,rec(x_rec) - lambda*u_mm,lig(x_lig) + lambda*u_ani,lig(x_lig)
         """
+        #get the nonalchemical
+        for key in self._protocol(_lambda).keys():
+            setattr(self.pdf_state_subset, key, 1.)
+        self.pdf_state_subset.apply_to_context(self.context_subset)
+        #self.pdf_state_subset.update_from_context(self.context_subset)
+        nonalch_energy = self.pdf_state_subset.reduced_potential(self.particle_state_subset)
+
+        #get the alchemical energy
+        for key, val in self._protocol(_lambda).items():
+            setattr(self.pdf_state_subset, key, val)
+        self.pdf_state_subset.apply_to_context(self.context_subset)
+        #self.pdf_state_subset.update_from_context(self.context_subset)
+        alch_energy = self.pdf_state_subset.reduced_potential(self.particle_state_subset)
+
+
+
         reduced_potential = (self.pdf_state.reduced_potential(particle_state)
-                             - _lambda * self.pdf_state_subset.reduced_potential(self.particle_state_subset)
+                             - nonalch_energy
+                             + (1. - _lambda) * alch_energy
                              + _lambda * self.ani_handler.calculate_energy(self.particle_state_subset.positions) * self.pdf_state.beta)
+
         return reduced_potential
 
     def _compute_hybrid_forces(self, _lambda, particle_state):
