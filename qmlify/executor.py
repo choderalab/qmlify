@@ -18,7 +18,7 @@ def run(setup_dict):
     from coddiwomple.openmm.states import OpenMMParticleState
     from qmlify.utils import load_yaml, deserialize_xml, position_extractor, generate_propagator_inputs, depickle
     import torch
-    
+
     torch.set_num_threads(6) #setting the number of threads because problems
 
     #pull systems
@@ -68,8 +68,11 @@ def run(setup_dict):
     elif setup_dict['direction'] == 'ani_endstate':
         from qmlify.propagation import ANIPropagator
         prop = ANIPropagator
+    elif setup_dict['direction'] == 'fb':
+        from qmlify.propagation import RoundTripPropagator
+        prop = RoundTripPropagator
     else:
-        raise Exception(f"{setup_dict['direction']} is not valid. allowed directions are 'forward', 'backward', 'ani_endstate'")
+        raise Exception(f"{setup_dict['direction']} is not valid. allowed directions are 'forward', 'backward', 'ani_endstate', and 'fb'")
 
     propagator = prop(openmm_pdf_state = pdf_state,
                      openmm_pdf_state_subset = pdf_state_subset,
